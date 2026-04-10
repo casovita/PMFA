@@ -14,21 +14,29 @@ header { padding: 1rem 0 1.5rem; }
 header h1 { font-size: 1.5rem; font-weight: 700; color: #fff; }
 header .subtitle { font-size: 1rem; font-weight: 400; color: #888; margin-left: 0.5rem; }
 
-/* Upload */
-#upload-label {
+/* Source picker */
+#source-picker {
+  display: flex;
+  gap: 1rem;
+}
+.source-btn {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 2.5rem 1rem;
   border: 2px dashed #444;
   border-radius: 8px;
-  padding: 3rem;
   cursor: pointer;
-  transition: border-color 0.2s;
   font-size: 1rem;
   color: #888;
+  background: none;
+  transition: border-color 0.2s, color 0.2s;
 }
-#upload-label:hover { border-color: #888; color: #ccc; }
-#upload-label input { display: none; }
+.source-btn:hover { border-color: #888; color: #ccc; }
+.source-btn input { display: none; }
+
+#btn-webcam { font-family: inherit; }
 
 /* Video */
 #video-container {
@@ -59,18 +67,35 @@ header .subtitle { font-size: 1rem; font-weight: 400; color: #888; margin-left: 
   gap: 0.75rem;
   padding: 0.75rem 0;
 }
-#play-pause {
+#play-pause, #stop-webcam {
   padding: 0.4rem 1rem;
-  background: #2563eb;
   color: #fff;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9rem;
+  white-space: nowrap;
 }
+#play-pause { background: #2563eb; }
 #play-pause:hover { background: #1d4ed8; }
+#stop-webcam { background: #dc2626; }
+#stop-webcam:hover { background: #b91c1c; }
 #scrubber { flex: 1; accent-color: #2563eb; }
 #time-display { font-size: 0.85rem; color: #888; white-space: nowrap; }
+
+/* Live badge */
+#webcam-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  border-radius: 3px;
+}
 
 /* Violations */
 #violations {
