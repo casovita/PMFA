@@ -14,6 +14,33 @@ header { padding: 1rem 0 1.5rem; }
 header h1 { font-size: 1.5rem; font-weight: 700; color: #fff; }
 header .subtitle { font-size: 1rem; font-weight: 400; color: #888; margin-left: 0.5rem; }
 
+/* Camera error banner */
+#camera-error {
+  background: #2d1010;
+  border: 1px solid #7f1d1d;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #fca5a5;
+  line-height: 1.6;
+}
+#camera-error strong { color: #f87171; }
+#camera-error ol { margin: 0.5rem 0 0.75rem 1.25rem; color: #fca5a5; }
+#camera-error li { margin-bottom: 0.25rem; }
+#camera-error em { color: #fcd34d; font-style: normal; }
+#camera-error-detail { display: block; font-size: 0.8rem; color: #f87171; margin: 0.2rem 0 0.5rem; }
+#camera-error-dismiss {
+  padding: 0.3rem 0.9rem;
+  background: #7f1d1d;
+  color: #fca5a5;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+#camera-error-dismiss:hover { background: #991b1b; }
+
 /* Source picker */
 #source-picker {
   display: flex;

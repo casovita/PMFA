@@ -18,6 +18,15 @@
 
     <main>
       <section id="source-section">
+        <div id="camera-error" class="hidden">
+          <strong>Camera access denied.</strong>
+          <span id="camera-error-detail"></span>
+          <ol>
+            <li>Click the camera icon in your browser's address bar and allow access, <strong>or</strong></li>
+            <li>Go to <em>System Settings → Privacy &amp; Security → Camera</em> and enable your browser.</li>
+          </ol>
+          <button id="camera-error-dismiss">Dismiss</button>
+        </div>
         <div id="source-picker">
           <label for="video-input" id="btn-upload" class="source-btn">
             Upload Video

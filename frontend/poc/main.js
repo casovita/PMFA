@@ -11,8 +11,11 @@ import { drawSkeleton, drawAngleLabel } from './renderer.js';
 import { initChart, appendAngle, updatePlayhead, resetChart } from './chart.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
-const videoInput      = document.getElementById('video-input');
-const btnWebcam       = document.getElementById('btn-webcam');
+const videoInput        = document.getElementById('video-input');
+const btnWebcam         = document.getElementById('btn-webcam');
+const cameraError       = document.getElementById('camera-error');
+const cameraErrorDetail = document.getElementById('camera-error-detail');
+const cameraErrorDismiss= document.getElementById('camera-error-dismiss');
 const video           = document.getElementById('video');
 const overlay         = document.getElementById('overlay');
 const scrubber        = document.getElementById('scrubber');
@@ -242,6 +245,7 @@ btnWebcam.addEventListener('click', async () => {
   } catch (err) {
     log(`Camera error: ${err.message}`);
     mode = 'idle';
+    showCameraError(err);
     return;
   }
 
@@ -269,6 +273,20 @@ stopWebcamBtn.addEventListener('click', () => {
   log(`Session ended. ${frameData.length} frames processed.`);
   logSummary();
   setIdleModeUI();
+});
+
+function showCameraError(err) {
+  const hints = {
+    NotAllowedError:  'Permission was denied. Allow camera access in your browser and/or macOS System Settings.',
+    NotFoundError:    'No camera device found. Plug in a webcam and try again.',
+    NotReadableError: 'Camera is in use by another app. Close other video apps and try again.',
+  };
+  cameraErrorDetail.textContent = hints[err.name] ?? err.message;
+  cameraError.classList.remove('hidden');
+}
+
+cameraErrorDismiss.addEventListener('click', () => {
+  cameraError.classList.add('hidden');
 });
 
 async function stopWebcam() {
