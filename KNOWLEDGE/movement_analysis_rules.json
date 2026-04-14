@@ -1,0 +1,1100 @@
+{
+  "$schema": "movement_analysis_rules/v1.0",
+  "metadata": {
+    "version": "1.0.0",
+    "created": "2026-04-13",
+    "description": "Structured ruleset for real-time barbell movement analysis combining joint safety constraints, execution standards, and no-rep detection.",
+    "angle_convention": "0_degrees_equals_anatomical_position",
+    "angle_convention_details": {
+      "knee_flexion": "0 = full extension, increases with bending",
+      "hip_flexion": "0 = standing upright, increases with bending forward",
+      "elbow_flexion": "0 = full extension, increases with bending",
+      "shoulder_abduction": "0 = arm at side, increases with arm raising laterally",
+      "ankle_dorsiflexion": "0 = foot perpendicular to tibia, increases as shin moves forward",
+      "lumbar_flexion": "0 = neutral lordosis, increases with forward rounding",
+      "trunk_lean": "0 = perfectly vertical, increases with forward lean",
+      "knee_valgus": "0 = neutral frontal plane alignment, increases with inward collapse",
+      "wrist_extension": "0 = neutral, increases with backward bending",
+      "cervical_deviation": "0 = neutral, increases in any plane",
+      "thoracic_kyphosis": "measured as increase above individual resting value",
+      "posterior_pelvic_tilt": "0 = starting neutral position, increases with tuck under"
+    },
+    "units": {
+      "angles": "degrees",
+      "distances": "centimeters",
+      "velocity_drop": "percent",
+      "time": "seconds"
+    },
+    "severity_levels": ["optimal", "warning", "high_risk", "critical"],
+    "severity_colors": {
+      "optimal": "green",
+      "warning": "yellow",
+      "high_risk": "orange",
+      "critical": "red"
+    }
+  },
+
+  "joint_safety_constraints": [
+    {
+      "id": "JSC-KNEE-001",
+      "joint": "knee",
+      "constraint": "dynamic_valgus",
+      "plane": "frontal",
+      "description": "Medial knee collapse during loaded movement. Strongest single predictor of ACL injury.",
+      "injury_mechanism": "Combined valgus loading with anterior tibial translation and internal rotation leading to ACL strain/rupture.",
+      "thresholds": {
+        "optimal": { "min": 0, "max": 5 },
+        "warning": { "min": 5, "max": 10 },
+        "high_risk": { "min": 10, "max": 15 },
+        "critical": { "min": 15, "max": null }
+      },
+      "evidence": "Hewett et al. 2005 AJSM: ACL-injured athletes had 8° greater knee abduction; valgus moment predicted injury at 73% sensitivity, 78% specificity.",
+      "detection_priority": 1,
+      "confidence_tolerance_deg": 3,
+      "applies_to_movements": ["squat", "front_squat", "overhead_squat", "clean", "snatch", "thruster", "wall_ball", "lunge"],
+      "measurement_notes": "Requires frontal-plane camera or 3D pose estimation. 2D sagittal view insufficient."
+    },
+    {
+      "id": "JSC-KNEE-002",
+      "joint": "knee",
+      "constraint": "hyperextension_at_lockout",
+      "plane": "sagittal",
+      "description": "Knee extending beyond 0° at top of movement under barbell load.",
+      "injury_mechanism": "Posterior capsule strain, cruciate ligament stress. 15° causes moderate posterolateral damage; 30° causes partial ACL avulsion (Fornalski 2008).",
+      "thresholds": {
+        "optimal": { "min": -2, "max": 0, "note": "Target 0° with muscular tension" },
+        "warning": { "min": -5, "max": -2, "note": "Negative values indicate hyperextension" },
+        "high_risk": { "min": -10, "max": -5 },
+        "critical": { "min": null, "max": -10 }
+      },
+      "evidence": "Normal physiological hyperextension 0-5° males, 0-6° females. Under load, any hyperextension beyond 5° is concerning.",
+      "detection_priority": 2,
+      "confidence_tolerance_deg": 2,
+      "applies_to_movements": ["squat", "deadlift", "clean", "snatch", "jerk"],
+      "measurement_notes": "Measured at lockout phase only. Use 0° = full extension convention where negative = hyperextension."
+    },
+    {
+      "id": "JSC-KNEE-003",
+      "joint": "knee",
+      "constraint": "flexion_under_load",
+      "plane": "sagittal",
+      "description": "Deep knee flexion under barbell load. Generally safe but relevant for PCL pathology and patellofemoral pain.",
+      "injury_mechanism": "PCL forces peak at maximum flexion. Patellofemoral compressive forces peak ~130° reaching ~8000N.",
+      "thresholds": {
+        "optimal": { "min": 0, "max": 155 },
+        "warning": { "min": 155, "max": 165, "note": "Only if PCL pathology present" },
+        "high_risk": { "min": null, "max": null, "note": "N/A for healthy knees" },
+        "critical": { "min": null, "max": null, "note": "N/A for healthy knees" }
+      },
+      "pathology_overrides": {
+        "pcl_pathology": { "max_safe_flexion": 60 },
+        "patellofemoral_pain": { "caution_above": 130 }
+      },
+      "evidence": "Schoenfeld 2010: ACL forces decrease beyond 60°. 87% of studies confirm deep squats do not increase injury risk.",
+      "detection_priority": 4,
+      "confidence_tolerance_deg": 5,
+      "applies_to_movements": ["squat", "front_squat", "overhead_squat", "clean", "snatch", "thruster", "wall_ball"],
+      "measurement_notes": "Flag only if user profile indicates PCL or PFP history."
+    },
+    {
+      "id": "JSC-HIP-001",
+      "joint": "hip",
+      "constraint": "flexion_with_pelvic_compensation",
+      "plane": "sagittal",
+      "description": "Hip flexion approaching anatomical limit causing posterior pelvic tilt (butt wink) and lumbar load transfer.",
+      "injury_mechanism": "When hip flexion reaches bony end-range (100-120° depending on anatomy), pelvis tilts posteriorly, transferring compressive and shear forces to lumbar discs.",
+      "thresholds": {
+        "optimal": { "min": 0, "max": 120, "note": "Within normal ROM for most individuals" },
+        "warning": { "min": 120, "max": 135, "note": "Approaching end-range, monitor for pelvic tilt" },
+        "high_risk": { "min": 135, "max": 150 },
+        "critical": { "min": 150, "max": null }
+      },
+      "evidence": "Full-depth squats require ~120° hip flexion. Butt wink onset at 100-120° varies by acetabular depth, femoral neck angle, and version.",
+      "detection_priority": 2,
+      "confidence_tolerance_deg": 5,
+      "applies_to_movements": ["squat", "front_squat", "overhead_squat", "clean", "snatch"],
+      "measurement_notes": "Must be evaluated in conjunction with lumbar_flexion and posterior_pelvic_tilt rules."
+    },
+    {
+      "id": "JSC-HIP-002",
+      "joint": "hip",
+      "constraint": "lateral_pelvic_shift_asymmetry",
+      "plane": "frontal",
+      "description": "Asymmetric lateral pelvic shift during bilateral movements.",
+      "injury_mechanism": "Unilateral overloading of lumbar facets, SI joint dysfunction, compensatory patterns.",
+      "thresholds": {
+        "optimal": { "min": 0, "max": 5, "unit": "percent_rom" },
+        "warning": { "min": 5, "max": 10, "unit": "percent_rom" },
+        "high_risk": { "min": 10, "max": null, "unit": "percent_rom" }
+      },
+      "evidence": "Lateral pelvic shift asymmetry exceeding 10% of ROM between sides is clinically meaningful.",
+      "detection_priority": 3,
+      "confidence_tolerance_deg": 3,
+      "applies_to_movements": ["squat", "front_squat", "deadlift"],
+      "measurement_notes": "Requires frontal-plane camera. Compare left vs right hip displacement from midline."
+    },
+    {
+      "id": "JSC-ANKLE-001",
+      "joint": "ankle",
+      "constraint": "dorsiflexion_restriction",
+      "plane": "sagittal",
+      "description": "Insufficient ankle dorsiflexion causing compensatory lumbar flexion during squatting.",
+      "injury_mechanism": "Below 15° dorsiflexion, compensatory lumbar flexion can reach 95% of maximum — dangerous substitution pattern.",
+      "thresholds": {
+        "optimal": { "min": 25, "max": null, "context": "parallel_squat" },
+        "warning": { "min": 15, "max": 25, "context": "parallel_squat" },
+        "high_risk": { "min": 10, "max": 15 },
+        "critical": { "min": null, "max": 10 }
+      },
+      "context_specific": {
+        "parallel_squat": { "minimum_required": 15, "optimal": 25 },
+        "full_depth_squat": { "minimum_required": 25, "optimal": 35 }
+      },
+      "evidence": "Normal ROM 15-20° non-weight-bearing. Full ATG squats demand 33-35° ± 5.5° (Hemmerich 2006).",
+      "detection_priority": 3,
+      "confidence_tolerance_deg": 3,
+      "applies_to_movements": ["squat", "front_squat", "overhead_squat", "clean", "snatch", "thruster", "wall_ball"],
+      "measurement_notes": "Flag athletes <15° as requiring heel elevation. Best measured during calibration phase."
+    },
+    {
+      "id": "JSC-SHOULDER-001",
+      "joint": "shoulder",
+      "constraint": "abduction_impingement_risk",
+      "plane": "frontal",
+      "description": "Excessive shoulder abduction during bench press increasing subacromial impingement and AC joint loading.",
+      "injury_mechanism": "Above 80° abduction, supraspinatus tendon compressed between humeral head and acromion. Combined with end-range external rotation at bottom of bench press, maximally stresses anterior glenohumeral ligament — primary mechanism for labral tears and pec major rupture.",
+      "thresholds": {
+        "optimal": { "min": 45, "max": 70 },
+        "warning": { "min": 70, "max": 80 },
+        "high_risk": { "min": 80, "max": 85 },
+        "critical": { "min": 85, "max": null }
+      },
+      "evidence": "Noteboom et al. 2024 Frontiers Physiology: 90° abduction significantly increased glenohumeral superior shear and AC joint loading vs 45° and 70°.",
+      "detection_priority": 1,
+      "confidence_tolerance_deg": 5,
+      "applies_to_movements": ["bench_press"],
+      "measurement_notes": "Requires frontal or oblique camera angle. Difficult to measure from pure sagittal view."
+    },
+    {
+      "id": "JSC-ELBOW-001",
+      "joint": "elbow",
+      "constraint": "hyperextension_under_load",
+      "plane": "sagittal",
+      "description": "Elbow extending beyond 0° at lockout under barbell load.",
+      "injury_mechanism": "Risk to anterior capsule, olecranon stress fracture, collateral ligament strain.",
+      "thresholds": {
+        "optimal": { "value": 0, "note": "Full extension with muscular tension" },
+        "warning": { "min": -5, "max": -2, "note": "Negative = hyperextension" },
+        "high_risk": { "min": -10, "max": -5 },
+        "critical": { "min": null, "max": -10 }
+      },
+      "evidence": "Normal physiological hyperextension 5-10° in some individuals. UCL tolerates ~30-35 Nm valgus torque before failure (Morrey & An 1983).",
+      "detection_priority": 3,
+      "confidence_tolerance_deg": 3,
+      "applies_to_movements": ["bench_press", "overhead_press", "push_press", "jerk", "snatch", "thruster"],
+      "measurement_notes": "Measured at lockout phase. Negative values indicate hyperextension beyond 0°."
+    },
+    {
+      "id": "JSC-WRIST-001",
+      "joint": "wrist",
+      "constraint": "extension_under_load",
+      "plane": "sagittal",
+      "description": "Excessive wrist extension during barbell pressing or squatting.",
+      "injury_mechanism": "Compressive load transmitted through extended wrist misaligns force vector off radius/ulna axis, increasing carpal and TFCC stress.",
+      "thresholds": {
+        "optimal": { "min": 0, "max": 10 },
+        "warning": { "min": 10, "max": 20 },
+        "high_risk": { "min": 20, "max": 35 },
+        "critical": { "min": 35, "max": null }
+      },
+      "context_specific": {
+        "front_rack": {
+          "expected_range": { "min": 70, "max": 90 },
+          "note": "Inherently stressful position at or beyond normal ROM. Monitor but do not flag as violation."
+        }
+      },
+      "evidence": "Normal extension ROM 60-75°. Under heavy load, bar should rest over radius/ulna axis near neutral.",
+      "detection_priority": 4,
+      "confidence_tolerance_deg": 5,
+      "applies_to_movements": ["bench_press", "overhead_press", "squat", "front_squat"],
+      "measurement_notes": "Wrist keypoints often occluded by barbell. Low confidence expected."
+    },
+    {
+      "id": "JSC-LUMBAR-001",
+      "joint": "lumbar_spine",
+      "constraint": "flexion_from_neutral",
+      "plane": "sagittal",
+      "description": "Lumbar spine rounding under compressive barbell load — primary disc herniation mechanism.",
+      "injury_mechanism": "Repeated flexion under compressive load herniates discs (McGill). At max flexion, spinal tolerance drops 30× (263 vs 8253 cycles). Flexion-relaxation phenomenon at 80-90% max ROM transfers all load to passive structures.",
+      "thresholds": {
+        "optimal": { "min": 0, "max": 25 },
+        "warning": { "min": 25, "max": 40 },
+        "high_risk": { "min": 40, "max": 50 },
+        "critical": { "min": 50, "max": null }
+      },
+      "percent_of_max_rom": {
+        "optimal": { "max": 50, "note": "McGill recommends <50% of max ROM under load" },
+        "warning": { "min": 50, "max": 70 },
+        "high_risk": { "min": 70, "max": 85 },
+        "critical": { "min": 85, "max": null },
+        "max_rom_reference": "55-65° total lumbar flexion (Mawston 2021)"
+      },
+      "evidence": "Callaghan & McGill 2001: herniations at 5000-9500 cycles at higher loads. Gallagher 2005: max flexion = 30× reduction in cycle tolerance. Coached lifters maintain 22-26° perceived as neutral.",
+      "detection_priority": 1,
+      "confidence_tolerance_deg": 5,
+      "applies_to_movements": ["squat", "front_squat", "deadlift", "clean", "snatch", "bent_over_row", "good_morning"],
+      "measurement_notes": "Measured as deviation from individual's calibrated neutral. Hip-to-shoulder vector vs vertical is a proxy."
+    },
+    {
+      "id": "JSC-LUMBAR-002",
+      "joint": "lumbar_spine",
+      "constraint": "posterior_pelvic_tilt_butt_wink",
+      "plane": "sagittal",
+      "description": "Posterior pelvic tilt at bottom of squat causing lumbar kyphosis under load.",
+      "injury_mechanism": "End-range lumbar flexion under compressive load. McGill identifies last 2-3° of ROM as most injurious zone.",
+      "thresholds": {
+        "optimal": { "min": 0, "max": 5 },
+        "warning": { "min": 5, "max": 10 },
+        "high_risk": { "min": 10, "max": 15, "note": "With visible lumbar kyphosis" },
+        "critical": { "min": 15, "max": null, "note": "With visible lumbar kyphosis under load" }
+      },
+      "evidence": "Butt wink beyond 10-20° approaches lumbar neutral zone boundary. Onset depends on individual hip anatomy (100-120° hip flexion).",
+      "detection_priority": 1,
+      "confidence_tolerance_deg": 5,
+      "applies_to_movements": ["squat", "front_squat", "overhead_squat", "clean", "snatch"],
+      "measurement_notes": "Measured as change from starting pelvic position to bottom position. Requires tracking pelvis orientation."
+    },
+    {
+      "id": "JSC-THORACIC-001",
+      "joint": "thoracic_spine",
+      "constraint": "excessive_kyphosis_increase",
+      "plane": "sagittal",
+      "description": "Increase in thoracic kyphosis beyond resting baseline during loaded movements.",
+      "injury_mechanism": "Upper back rounding increases compensatory lumbar extension and shoulder stress. Indicates upper back strength deficit.",
+      "thresholds": {
+        "optimal": { "min": 0, "max": 10, "note": "Degrees above individual resting kyphosis" },
+        "warning": { "min": 10, "max": 15 },
+        "high_risk": { "min": 15, "max": 20 },
+        "critical": { "min": 20, "max": null }
+      },
+      "evidence": "Normal standing thoracic kyphosis 40-45° (Neumann 2010). Only 20-25° of available extension. Overhead lockout requires reducing to ~15-20° total.",
+      "detection_priority": 3,
+      "confidence_tolerance_deg": 5,
+      "applies_to_movements": ["squat", "deadlift", "overhead_press", "snatch", "clean"],
+      "measurement_notes": "Measured relative to individual baseline, not absolute. Requires calibration."
+    },
+    {
+      "id": "JSC-CERVICAL-001",
+      "joint": "cervical_spine",
+      "constraint": "deviation_from_neutral",
+      "plane": "any",
+      "description": "Cervical spine deviation from neutral under axial barbell load.",
+      "injury_mechanism": "Hyperextension compresses posterior facet joints/discs. Flexion stretches posterior ligaments under compression. Lateral flexion creates asymmetric disc loading.",
+      "thresholds": {
+        "optimal": { "min": 0, "max": 10 },
+        "warning": { "min": 10, "max": 20 },
+        "high_risk": { "min": 20, "max": 30 },
+        "critical": { "min": 30, "max": null }
+      },
+      "evidence": "Neutral = slight chin tuck maintaining lordosis, gaze 10-15° below horizontal.",
+      "detection_priority": 4,
+      "confidence_tolerance_deg": 5,
+      "applies_to_movements": ["squat", "deadlift", "overhead_press", "bench_press"],
+      "measurement_notes": "Any plane deviation measured. Ear-to-shoulder vector vs vertical is a reasonable proxy."
+    }
+  ],
+
+  "execution_standards": {
+    "powerlifting_ipf": {
+      "rulebook_version": "2026 IPF Technical Rulebook (effective March 1, 2026)",
+      "movements": {
+        "squat": {
+          "id": "EXEC-IPF-SQ-001",
+          "movement": "squat",
+          "phases": ["unrack", "walkout", "descent", "bottom", "ascent", "lockout", "rack"],
+          "command_sequence": ["squat", "rack"],
+          "depth_requirement": {
+            "rule": "Top surface of legs at hip joint must be lower than top of knees",
+            "proxy_angle": {
+              "joint": "knee",
+              "measurement": "knee_flexion",
+              "minimum_degrees": 100,
+              "typical_range": { "min": 100, "max": 120 },
+              "note": "Exact angle varies with anthropometry. Hip crease below kneecap is the visual standard."
+            }
+          },
+          "lockout_requirements": {
+            "knees": "fully_locked_at_0_degrees",
+            "torso": "erect",
+            "motionless": true
+          },
+          "red_light_causes": [
+            {
+              "id": "IPF-SQ-RL-001",
+              "violation": "insufficient_depth",
+              "description": "Hip crease not below top of knees",
+              "detection_method": "Compare hip_joint_y to knee_joint_y in sagittal view",
+              "priority": 1
+            },
+            {
+              "id": "IPF-SQ-RL-002",
+              "violation": "double_bounce",
+              "description": "Downward movement during ascent phase",
+              "detection_method": "Detect negative vertical velocity of bar/hip after ascent begins",
+              "priority": 2
+            },
+            {
+              "id": "IPF-SQ-RL-003",
+              "violation": "knees_not_locked",
+              "description": "Failure to achieve full knee extension at completion",
+              "detection_method": "Knee flexion > 5° at lockout phase",
+              "priority": 2
+            },
+            {
+              "id": "IPF-SQ-RL-004",
+              "violation": "foot_movement",
+              "description": "Stepping or lateral foot movement (rocking ball-to-heel permitted)",
+              "detection_method": "Track foot keypoint horizontal displacement >5cm from start position",
+              "priority": 3
+            },
+            {
+              "id": "IPF-SQ-RL-005",
+              "violation": "elbow_leg_contact",
+              "description": "Elbow contact with legs providing support",
+              "detection_method": "Proximity check between elbow and knee keypoints during ascent",
+              "priority": 3
+            }
+          ],
+          "biomechanical_targets": {
+            "stance_width": {
+              "optimal_multiplier": { "min": 1.0, "max": 1.5, "reference": "shoulder_width" },
+              "toe_out_degrees": { "min": 15, "max": 42, "recommended": 30 }
+            },
+            "bar_path": {
+              "target": "vertical_over_midfoot",
+              "max_deviation_cm": { "optimal": 2, "warning": 5, "high_risk": 8 }
+            },
+            "trunk_forward_lean": {
+              "high_bar": { "optimal": { "min": 15, "max": 35 }, "warning_above": 45, "critical_above": 55 },
+              "low_bar": { "optimal": { "min": 30, "max": 50 }, "warning_above": 55, "critical_above": 65 }
+            },
+            "hip_flexion_at_bottom": { "typical": { "min": 95, "max": 106 } }
+          }
+        },
+
+        "bench_press": {
+          "id": "EXEC-IPF-BP-001",
+          "movement": "bench_press",
+          "phases": ["setup", "unrack", "descent", "pause", "press", "lockout", "rack"],
+          "command_sequence": ["start", "press", "rack"],
+          "setup_requirements": {
+            "head_on_bench": true,
+            "shoulders_on_bench": true,
+            "buttocks_on_bench": true,
+            "feet_flat_on_floor": true,
+            "grip": "thumbs_around_bar",
+            "max_grip_width_cm": 81,
+            "grip_width_measurement": "between_forefingers"
+          },
+          "descent_requirement": {
+            "rule": "Elbows must be lowered so underside of both elbow joints is level with or below top of each shoulder joint",
+            "proxy_angle": {
+              "measurement": "elbow_height_relative_to_shoulder",
+              "condition": "elbow_y >= shoulder_y",
+              "note": "2026 rule addition — enforces minimum descent depth beyond chest touch"
+            },
+            "bar_on_chest": "motionless_before_press_command"
+          },
+          "lockout_requirements": {
+            "arms": "fully_extended",
+            "elbows": "locked_at_0_degrees",
+            "even_lockout": true
+          },
+          "red_light_causes": [
+            {
+              "id": "IPF-BP-RL-001",
+              "violation": "heaving_or_sinking",
+              "description": "Bar heaves or sinks into chest after being motionless",
+              "detection_method": "Detect downward bar velocity after pause period begins",
+              "priority": 2
+            },
+            {
+              "id": "IPF-BP-RL-002",
+              "violation": "downward_movement_during_press",
+              "description": "Any downward bar movement after press command",
+              "detection_method": "Detect negative vertical bar velocity during press phase",
+              "priority": 1
+            },
+            {
+              "id": "IPF-BP-RL-003",
+              "violation": "buttocks_lift",
+              "description": "Buttocks losing contact with bench during press",
+              "detection_method": "Track hip keypoint vertical displacement relative to bench surface",
+              "priority": 1
+            },
+            {
+              "id": "IPF-BP-RL-004",
+              "violation": "feet_lift",
+              "description": "Feet losing contact with floor",
+              "detection_method": "Track foot keypoint vertical displacement from floor baseline",
+              "priority": 2
+            },
+            {
+              "id": "IPF-BP-RL-005",
+              "violation": "uneven_lockout",
+              "description": "Arms not evenly extended at completion",
+              "detection_method": "Compare left vs right elbow extension angle; flag if difference > 10°",
+              "priority": 2
+            },
+            {
+              "id": "IPF-BP-RL-006",
+              "violation": "insufficient_elbow_depth",
+              "description": "Elbows not lowered to shoulder level before press",
+              "detection_method": "Compare elbow_y to shoulder_y; flag if elbow remains above shoulder",
+              "priority": 1
+            }
+          ],
+          "biomechanical_targets": {
+            "grip_width": {
+              "optimal_multiplier": { "min": 1.4, "max": 1.5, "reference": "biacromial_width" },
+              "strength_max_multiplier": { "min": 1.65, "max": 2.0, "reference": "biacromial_width", "note": "Higher injury risk" }
+            },
+            "shoulder_abduction": {
+              "optimal": { "min": 45, "max": 70 },
+              "warning_above": 75,
+              "high_risk_above": 80,
+              "critical_above": 85
+            },
+            "bar_path": {
+              "pattern": "j_curve",
+              "description": "Slight arc from lower chest back toward face during press",
+              "forearm_orientation": "approximately_perpendicular_to_floor_at_bottom"
+            },
+            "wrist_position": {
+              "optimal_extension": { "min": 0, "max": 10 },
+              "bar_over": "radius_ulna_axis"
+            }
+          }
+        },
+
+        "deadlift": {
+          "id": "EXEC-IPF-DL-001",
+          "movement": "deadlift",
+          "phases": ["setup", "pull", "lockout", "hold", "descent"],
+          "command_sequence": ["down"],
+          "start_command": "none_lifter_initiates",
+          "lockout_requirements": {
+            "knees": "locked_straight",
+            "torso": "erect",
+            "shoulders": "back",
+            "shoulder_rule": "Front bundle of deltoid behind imaginary vertical projection of bar",
+            "bar": "motionless_at_lockout"
+          },
+          "stances_permitted": ["conventional", "sumo"],
+          "red_light_causes": [
+            {
+              "id": "IPF-DL-RL-001",
+              "violation": "downward_bar_movement",
+              "description": "Any downward bar movement before reaching final position",
+              "detection_method": "Detect negative vertical bar velocity before lockout achieved",
+              "priority": 1
+            },
+            {
+              "id": "IPF-DL-RL-002",
+              "violation": "knees_not_locked",
+              "description": "Failure to lock knees at lockout",
+              "detection_method": "Knee flexion > 5° at lockout",
+              "priority": 1
+            },
+            {
+              "id": "IPF-DL-RL-003",
+              "violation": "not_erect",
+              "description": "Failure to stand erect with shoulders back",
+              "detection_method": "Trunk lean > 10° from vertical at lockout OR shoulder_x forward of bar_x",
+              "priority": 1
+            },
+            {
+              "id": "IPF-DL-RL-004",
+              "violation": "hitching",
+              "description": "Supporting bar on thighs during ascent with upward leg movement",
+              "detection_method": "Detect bar resting on thigh (bar velocity near zero while hip extending) with knee re-bend",
+              "priority": 1
+            },
+            {
+              "id": "IPF-DL-RL-005",
+              "violation": "stepping",
+              "description": "Any foot movement during the lift",
+              "detection_method": "Track foot keypoint displacement > 3cm from start position",
+              "priority": 2
+            }
+          ],
+          "biomechanical_targets": {
+            "conventional": {
+              "trunk_angle_from_vertical": { "start": { "min": 30, "max": 45 } },
+              "hip_flexion_start": { "min": 80, "max": 95 },
+              "stance_width_cm": { "mean": 32, "sd": 8 }
+            },
+            "sumo": {
+              "trunk_angle_from_vertical": { "start": { "min": 15, "max": 30 } },
+              "hip_flexion_start": { "min": 70, "max": 85 },
+              "stance_width_cm": { "mean": 70, "sd": 11 },
+              "toe_out_degrees": { "mean": 42, "sd": 8 },
+              "lumbar_torque_reduction_vs_conventional": "25-35%",
+              "bar_travel_reduction_vs_conventional": "19-25%"
+            },
+            "bar_path": {
+              "target": "vertical_and_close_to_body",
+              "max_drift_from_body_cm": { "optimal": 2, "warning": 5, "high_risk": 8 }
+            }
+          }
+        }
+      }
+    },
+
+    "crossfit": {
+      "standards_source": "Compiled from 2018-2026 CrossFit Games, Open, and Quarterfinal scorecards",
+      "movements": {
+        "air_squat": {
+          "id": "EXEC-CF-AS-001",
+          "movement": "air_squat",
+          "depth_standard": "hip_crease_below_top_of_knee",
+          "top_standard": "full_hip_and_knee_extension",
+          "no_rep_conditions": [
+            {
+              "id": "CF-AS-NR-001",
+              "condition": "insufficient_depth",
+              "description": "Hip crease not clearly below top of knee",
+              "detection": { "method": "hip_joint_y > knee_joint_y", "view": "sagittal" },
+              "priority": 1
+            },
+            {
+              "id": "CF-AS-NR-002",
+              "condition": "incomplete_extension",
+              "description": "Hips or knees not fully extended at top",
+              "detection": { "method": "hip_extension < 170° OR knee_flexion > 10°", "view": "sagittal" },
+              "priority": 1
+            }
+          ]
+        },
+
+        "front_squat": {
+          "id": "EXEC-CF-FS-001",
+          "movement": "front_squat",
+          "depth_standard": "hip_crease_below_top_of_knee",
+          "top_standard": "full_hip_and_knee_extension",
+          "rack_position": "elbows_in_front_of_bar",
+          "no_rep_conditions": [
+            {
+              "id": "CF-FS-NR-001",
+              "condition": "insufficient_depth",
+              "description": "Hip crease not clearly below top of knee",
+              "detection": { "method": "hip_joint_y > knee_joint_y", "view": "sagittal" },
+              "priority": 1
+            },
+            {
+              "id": "CF-FS-NR-002",
+              "condition": "incomplete_extension",
+              "description": "Hips or knees not fully extended at top",
+              "detection": { "method": "hip_extension < 170° OR knee_flexion > 10°" },
+              "priority": 1
+            }
+          ],
+          "biomechanical_targets": {
+            "trunk_forward_lean": {
+              "optimal": { "min": 5, "max": 20 },
+              "warning_above": 30,
+              "critical_above": 40
+            }
+          }
+        },
+
+        "overhead_squat": {
+          "id": "EXEC-CF-OHS-001",
+          "movement": "overhead_squat",
+          "depth_standard": "hip_crease_below_top_of_knee",
+          "top_standard": "full_lockout_overhead_with_hips_knees_arms_extended",
+          "bar_position_at_top": "over_or_slightly_behind_midline_in_profile",
+          "no_rep_conditions": [
+            {
+              "id": "CF-OHS-NR-001",
+              "condition": "insufficient_depth",
+              "description": "Hip crease not clearly below top of knee",
+              "priority": 1
+            },
+            {
+              "id": "CF-OHS-NR-002",
+              "condition": "incomplete_overhead_lockout",
+              "description": "Arms, hips, or knees not fully extended at top",
+              "detection": { "method": "elbow_flexion > 10° OR hip_extension < 170° OR knee_flexion > 10°" },
+              "priority": 1
+            },
+            {
+              "id": "CF-OHS-NR-003",
+              "condition": "bar_forward_of_midline",
+              "description": "Bar not over or behind midline when viewed from side",
+              "detection": { "method": "bar_x > midfoot_x + tolerance", "tolerance_cm": 5 },
+              "priority": 2
+            }
+          ]
+        },
+
+        "thruster": {
+          "id": "EXEC-CF-THR-001",
+          "movement": "thruster",
+          "depth_standard": "hip_crease_below_top_of_knee",
+          "top_standard": "full_lockout_overhead_with_hips_knees_arms_extended",
+          "no_rep_conditions": [
+            {
+              "id": "CF-THR-NR-001",
+              "condition": "insufficient_depth",
+              "description": "Hip crease not clearly below top of knee",
+              "priority": 1
+            },
+            {
+              "id": "CF-THR-NR-002",
+              "condition": "incomplete_lockout",
+              "description": "Arms, hips, or knees not fully extended at top",
+              "priority": 1
+            },
+            {
+              "id": "CF-THR-NR-003",
+              "condition": "re_dip_to_jerk",
+              "description": "Converting thruster to jerk by re-dipping after drive phase",
+              "detection": { "method": "Detect secondary knee flexion > 15° after initial drive phase" },
+              "priority": 1
+            }
+          ]
+        },
+
+        "wall_ball": {
+          "id": "EXEC-CF-WB-001",
+          "movement": "wall_ball",
+          "depth_standard": "hip_crease_below_top_of_knee",
+          "target_height": {
+            "men_ft": 10,
+            "women_ft": 9,
+            "men_cm": 305,
+            "women_cm": 274
+          },
+          "no_rep_conditions": [
+            {
+              "id": "CF-WB-NR-001",
+              "condition": "insufficient_depth",
+              "description": "Hip crease not clearly below top of knee",
+              "priority": 1
+            },
+            {
+              "id": "CF-WB-NR-002",
+              "condition": "ball_below_target",
+              "description": "Ball does not strike wall clearly above specified height",
+              "detection": { "method": "Track ball apex_y relative to target line" },
+              "priority": 1
+            }
+          ]
+        },
+
+        "deadlift": {
+          "id": "EXEC-CF-DL-001",
+          "movement": "deadlift",
+          "lockout_standard": "full_hip_and_knee_extension_head_shoulders_behind_bar",
+          "stance_restriction": "sumo_not_permitted",
+          "no_rep_conditions": [
+            {
+              "id": "CF-DL-NR-001",
+              "condition": "incomplete_lockout",
+              "description": "Hips or knees not fully extended, or head/shoulders not behind bar",
+              "detection": {
+                "hip_extension": "< 170°",
+                "knee_flexion": "> 10°",
+                "shoulder_position": "shoulder_x > bar_x in sagittal view"
+              },
+              "priority": 1
+            },
+            {
+              "id": "CF-DL-NR-002",
+              "condition": "sumo_stance",
+              "description": "Hands placed inside knees (sumo deadlift not permitted)",
+              "detection": { "method": "wrist_x between knee_x_left and knee_x_right in frontal view" },
+              "priority": 1
+            }
+          ]
+        },
+
+        "clean": {
+          "id": "EXEC-CF-CL-001",
+          "movement": "clean",
+          "variants_accepted": ["muscle_clean", "power_clean", "split_clean", "squat_clean"],
+          "bar_path": "ground_to_shoulders_in_one_motion",
+          "rack_position": "elbows_clearly_in_front_of_bar",
+          "top_standard": "full_hip_and_knee_extension",
+          "squat_clean_depth": "hip_crease_below_knee_if_squatting",
+          "no_rep_conditions": [
+            {
+              "id": "CF-CL-NR-001",
+              "condition": "incomplete_extension",
+              "description": "Hips or knees not fully extended at top",
+              "priority": 1
+            },
+            {
+              "id": "CF-CL-NR-002",
+              "condition": "improper_rack",
+              "description": "Elbows not clearly in front of bar in rack position",
+              "priority": 2
+            },
+            {
+              "id": "CF-CL-NR-003",
+              "condition": "squat_clean_insufficient_depth",
+              "description": "If squatting, hip crease not below knee",
+              "priority": 1,
+              "applies_when": "squat_clean"
+            }
+          ]
+        },
+
+        "clean_and_jerk": {
+          "id": "EXEC-CF-CJ-001",
+          "movement": "clean_and_jerk",
+          "clean_standards": "same_as_clean",
+          "jerk_standards": "full_lockout_overhead_arms_hips_knees_extended_feet_in_line",
+          "split_jerk_additional": "feet_must_return_to_in_line_before_lowering",
+          "bar_position_overhead": "over_or_behind_midline",
+          "critical_rule": "If any portion receives no-rep, entire rep must be repeated from floor. Cannot reattempt jerk from rack.",
+          "no_rep_conditions": [
+            {
+              "id": "CF-CJ-NR-001",
+              "condition": "incomplete_clean",
+              "description": "Any clean standard not met",
+              "priority": 1
+            },
+            {
+              "id": "CF-CJ-NR-002",
+              "condition": "incomplete_jerk_lockout",
+              "description": "Arms, hips, or knees not fully extended overhead",
+              "detection": { "method": "elbow_flexion > 10° OR hip_extension < 170° OR knee_flexion > 10°" },
+              "priority": 1
+            },
+            {
+              "id": "CF-CJ-NR-003",
+              "condition": "feet_not_in_line",
+              "description": "For split jerk, feet not returned to parallel position before lowering bar",
+              "priority": 2
+            },
+            {
+              "id": "CF-CJ-NR-004",
+              "condition": "bar_forward_of_midline",
+              "description": "Bar not over or behind midline at lockout",
+              "priority": 2
+            }
+          ]
+        },
+
+        "snatch": {
+          "id": "EXEC-CF-SN-001",
+          "movement": "snatch",
+          "bar_path": "ground_to_overhead_in_one_motion_without_stopping_at_shoulders",
+          "lockout_standard": "arms_hips_knees_fully_extended_bar_over_behind_midline",
+          "squat_snatch_depth": "below_parallel_in_continuous_motion",
+          "prohibited": "power_snatch_then_separate_overhead_squat",
+          "no_rep_conditions": [
+            {
+              "id": "CF-SN-NR-001",
+              "condition": "bar_stops_at_shoulders",
+              "description": "Bar pauses or rests at shoulder level (becomes a clean-and-jerk)",
+              "detection": { "method": "Detect bar velocity near zero at shoulder height for > 0.5s" },
+              "priority": 1
+            },
+            {
+              "id": "CF-SN-NR-002",
+              "condition": "incomplete_lockout",
+              "description": "Arms, hips, or knees not fully extended at top",
+              "priority": 1
+            },
+            {
+              "id": "CF-SN-NR-003",
+              "condition": "squat_snatch_insufficient_depth",
+              "description": "For squat snatch, did not pass through below-parallel in continuous motion",
+              "priority": 1,
+              "applies_when": "squat_snatch"
+            },
+            {
+              "id": "CF-SN-NR-004",
+              "condition": "bar_forward_of_midline",
+              "description": "Bar not over or behind midline at lockout",
+              "priority": 2
+            }
+          ]
+        },
+
+        "push_press": {
+          "id": "EXEC-CF-PP-001",
+          "movement": "push_press",
+          "start_position": "front_rack",
+          "drive": "leg_drive_to_initiate",
+          "lockout_standard": "full_overhead_lockout",
+          "no_rep_conditions": [
+            {
+              "id": "CF-PP-NR-001",
+              "condition": "incomplete_lockout",
+              "description": "Arms, hips, or knees not fully extended at top",
+              "priority": 1
+            },
+            {
+              "id": "CF-PP-NR-002",
+              "condition": "re_dip_to_jerk",
+              "description": "Re-dipping under bar converts push press to jerk — no-rep when push press specified",
+              "detection": { "method": "Detect secondary knee flexion > 15° after initial drive" },
+              "priority": 1,
+              "note": "When standard says shoulder-to-overhead, any method is acceptable"
+            }
+          ]
+        },
+
+        "pull_up": {
+          "id": "EXEC-CF-PU-001",
+          "movement": "pull_up",
+          "start_position": "full_hang_arms_extended_feet_off_ground",
+          "completion": "chin_clearly_breaks_horizontal_plane_of_bar",
+          "kipping_permitted": true,
+          "strict_override": "If 'strict' specified, no kipping or butterfly",
+          "no_rep_conditions": [
+            {
+              "id": "CF-PU-NR-001",
+              "condition": "chin_below_bar",
+              "description": "Chin does not clearly break horizontal plane of bar",
+              "detection": { "method": "chin_y > bar_y" },
+              "priority": 1
+            },
+            {
+              "id": "CF-PU-NR-002",
+              "condition": "no_full_hang",
+              "description": "Arms not fully extended at start of rep",
+              "detection": { "method": "elbow_flexion > 15° at bottom of rep" },
+              "priority": 1
+            }
+          ]
+        },
+
+        "chest_to_bar": {
+          "id": "EXEC-CF-C2B-001",
+          "movement": "chest_to_bar",
+          "start_position": "full_hang_arms_extended_feet_off_ground",
+          "completion": "chest_contacts_bar_at_or_below_collarbone",
+          "no_rep_conditions": [
+            {
+              "id": "CF-C2B-NR-001",
+              "condition": "no_chest_contact",
+              "description": "Chest does not make contact with bar",
+              "priority": 1
+            },
+            {
+              "id": "CF-C2B-NR-002",
+              "condition": "contact_above_collarbone",
+              "description": "Contact at neck/throat area above collarbone",
+              "priority": 1
+            },
+            {
+              "id": "CF-C2B-NR-003",
+              "condition": "no_full_hang",
+              "description": "Arms not fully extended at start",
+              "priority": 1
+            }
+          ]
+        },
+
+        "bar_muscle_up": {
+          "id": "EXEC-CF-BMU-001",
+          "movement": "bar_muscle_up",
+          "start_position": "hang_with_arms_extended",
+          "transition": "must_pass_through_portion_of_dip",
+          "completion": "arms_fully_locked_out_in_support_above_bar",
+          "restrictions": ["heels_may_not_rise_above_bar_height_during_kip", "no_pullovers", "no_glide_kips"],
+          "no_rep_conditions": [
+            {
+              "id": "CF-BMU-NR-001",
+              "condition": "incomplete_lockout",
+              "description": "Arms not fully locked out in support",
+              "priority": 1
+            },
+            {
+              "id": "CF-BMU-NR-002",
+              "condition": "heels_above_bar",
+              "description": "Heels rise above bar height during kip",
+              "detection": { "method": "heel_y < bar_y during kip phase" },
+              "priority": 2
+            },
+            {
+              "id": "CF-BMU-NR-003",
+              "condition": "no_dip_transition",
+              "description": "Did not pass through a portion of a dip before lockout",
+              "priority": 2
+            }
+          ]
+        },
+
+        "ring_muscle_up": {
+          "id": "EXEC-CF-RMU-001",
+          "movement": "ring_muscle_up",
+          "start_position": "hang_with_arms_extended",
+          "completion": "full_elbow_lockout_shoulders_over_or_in_front_of_hands",
+          "restrictions": ["feet_may_not_rise_above_bottom_of_rings", "change_of_direction_below_rings_required_between_kipping_reps"],
+          "no_rep_conditions": [
+            {
+              "id": "CF-RMU-NR-001",
+              "condition": "incomplete_lockout",
+              "description": "Elbows not fully locked out in support",
+              "priority": 1
+            },
+            {
+              "id": "CF-RMU-NR-002",
+              "condition": "feet_above_rings",
+              "description": "Feet rise above bottom of rings",
+              "priority": 2
+            }
+          ]
+        },
+
+        "handstand_push_up": {
+          "id": "EXEC-CF-HSPU-001",
+          "movement": "handstand_push_up",
+          "top_position": {
+            "arms": "locked_out",
+            "heels": "touching_wall_above_target_line",
+            "hips": "open"
+          },
+          "bottom_position": {
+            "head": "contacts_ground_or_mat"
+          },
+          "hand_box": {
+            "width_inches": 36,
+            "depth_inches": 24,
+            "width_cm": 91.4,
+            "depth_cm": 61.0
+          },
+          "kipping_permitted": true,
+          "strict_override": "If 'strict' specified, no kipping",
+          "deficit_variant": "Elevated hand surfaces increase ROM",
+          "no_rep_conditions": [
+            {
+              "id": "CF-HSPU-NR-001",
+              "condition": "head_not_touching_ground",
+              "description": "Head does not contact ground/mat at bottom",
+              "priority": 1
+            },
+            {
+              "id": "CF-HSPU-NR-002",
+              "condition": "incomplete_lockout",
+              "description": "Arms not fully locked out at top",
+              "priority": 1
+            },
+            {
+              "id": "CF-HSPU-NR-003",
+              "condition": "heels_below_line",
+              "description": "Heels not touching wall above target line at top",
+              "priority": 1
+            },
+            {
+              "id": "CF-HSPU-NR-004",
+              "condition": "hands_outside_box",
+              "description": "Hands placed outside the 36×24 inch box",
+              "priority": 2
+            },
+            {
+              "id": "CF-HSPU-NR-005",
+              "condition": "hips_not_open",
+              "description": "Hips not fully extended at top",
+              "priority": 2
+            }
+          ]
+        }
+      }
+    }
+  },
+
+  "fatigue_detection": {
+    "id": "FATIGUE-001",
+    "description": "Rep-to-rep drift detection comparing each rep to the first rep of a set. Fatigue-induced form degradation is the primary injury mechanism in trained lifters.",
+    "baseline": "first_rep_of_set",
+    "alert_thresholds": [
+      {
+        "id": "FAT-001",
+        "metric": "lumbar_flexion_increase",
+        "threshold_deg": 12,
+        "severity": "high_risk",
+        "description": "Lumbar flexion increases >10-15° from first rep"
+      },
+      {
+        "id": "FAT-002",
+        "metric": "knee_valgus_increase",
+        "threshold_deg": 5,
+        "severity": "high_risk",
+        "description": "Knee valgus increases >5° from first rep"
+      },
+      {
+        "id": "FAT-003",
+        "metric": "trunk_lean_increase",
+        "threshold_deg": 10,
+        "severity": "warning",
+        "description": "Trunk forward lean increases >10° from first rep"
+      },
+      {
+        "id": "FAT-004",
+        "metric": "bar_path_deviation_increase",
+        "threshold_cm": 2,
+        "severity": "warning",
+        "description": "Bar path horizontal deviation increases >2cm from first rep"
+      },
+      {
+        "id": "FAT-005",
+        "metric": "depth_inconsistency",
+        "threshold_deg": 5,
+        "severity": "warning",
+        "description": "Squat depth varies >5° knee flexion between consecutive reps"
+      },
+      {
+        "id": "FAT-006",
+        "metric": "bar_velocity_drop",
+        "threshold_percent": 25,
+        "severity": "warning",
+        "description": "Bar velocity drops >20-30% from first rep"
+      },
+      {
+        "id": "FAT-007",
+        "metric": "sudden_flexion_event",
+        "description": "Rapid, discontinuous increase in lumbar flexion — precedes disc injury under load",
+        "severity": "critical",
+        "action": "immediate_stop_signal",
+        "detection": "Rate of change of lumbar flexion exceeds 2 standard deviations from mean rep-to-rep change"
+      }
+    ]
+  },
+
+  "camera_requirements": {
+    "sagittal_view": {
+      "position": "perpendicular to movement plane at hip height",
+      "distance_m": { "min": 3, "max": 5 },
+      "captures": ["knee_flexion", "hip_flexion", "trunk_lean", "lumbar_flexion", "bar_path", "ankle_dorsiflexion", "elbow_lockout", "wrist_extension", "cervical_deviation"],
+      "sufficient_for": ["squat_depth", "deadlift_lockout", "overhead_lockout", "bench_bar_path"]
+    },
+    "frontal_view": {
+      "position": "directly in front or behind at hip height",
+      "distance_m": { "min": 3, "max": 5 },
+      "captures": ["knee_valgus", "shoulder_abduction", "lateral_pelvic_shift", "foot_stance_width"],
+      "required_for": ["knee_valgus_detection", "bench_press_shoulder_abduction"]
+    },
+    "minimum_frame_rate": {
+      "squat_and_deadlift": 30,
+      "bench_press_and_velocity": 60
+    },
+    "keypoint_confidence_threshold": 0.5
+  },
+
+  "calibration": {
+    "description": "Individual baseline ROM assessment before applying population thresholds. Population thresholds are accurate for ~80% of training population.",
+    "recommended_assessments": [
+      { "test": "unloaded_bodyweight_squat", "measures": ["max_hip_flexion", "ankle_dorsiflexion", "butt_wink_onset_angle", "resting_trunk_lean"] },
+      { "test": "standing_baseline", "measures": ["resting_thoracic_kyphosis", "resting_lumbar_lordosis", "standing_knee_alignment"] },
+      { "test": "overhead_reach", "measures": ["shoulder_flexion_rom", "thoracic_extension_capacity"] }
+    ],
+    "individual_variation_note": "Hip and thoracic anatomy can shift optimal ranges by 15-20° in either direction."
+  }
+}
