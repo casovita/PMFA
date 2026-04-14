@@ -8,6 +8,7 @@
 ## Table of Contents
 
 - [Best Practices & Development Standards](#best-practices--development-standards)
+- [Rules Engine Architecture](#rules-engine-architecture)
 - [Phase 1 — Proof of Concept (Weeks 1–6)](#phase-1--proof-of-concept-weeks-16)
 - [Phase 2 — Alpha: All Three Lifts + Backend (Weeks 7–16)](#phase-2--alpha-all-three-lifts--backend-weeks-716)
 - [Phase 3 — Beta: Data, ML Scoring + Auth (Weeks 17–28)](#phase-3--beta-data-ml-scoring--auth-weeks-1728)
@@ -238,6 +239,66 @@ Installed via `pre-commit` framework (Python) + `husky` (Node):
 
 ---
 
+## Rules Engine Architecture
+
+The rules engine is the deterministic, evidence-based core of PMFA's analysis pipeline. It evaluates per-frame biomechanical measurements against structured thresholds and produces severity-graded violations, execution compliance flags, rep scores, and fatigue alerts.
+
+### Canonical Sources of Truth
+
+| File | Role |
+|------|------|
+| `KNOWLEDGE/movement_analysis_rules.json` | Machine-readable ruleset — loaded by backend at startup; consumed directly by Phase 1 browser JS |
+| `KNOWLEDGE/Biomechanical_thresholds_and_execution_standards.md` | Human-readable evidence base — every threshold has a source citation and injury mechanism |
+
+**Never hardcode threshold values in application code.** All angle ranges are read from or validated against `movement_analysis_rules.json`.
+
+### Schema Structure
+
+```json
+{
+  "joint_safety_constraints": [ /* 12 constraints, IDs: JSC-*-001 */ ],
+  "execution_standards": {
+    "powerlifting_ipf": { /* IPF 2026: squat, bench, deadlift */ },
+    "crossfit":         { /* Per-movement standards */ }
+  },
+  "fatigue_detection": { /* Rep-over-rep drift rules */ },
+  "scoring":           { /* Deduction tables per severity and category */ }
+}
+```
+
+Each constraint entry contains: `id` (stable, e.g. `JSC-KNEE-001`), `thresholds` (optimal/warning/high_risk/critical), `applies_to_movements[]`, `detection_priority` (1–4), `measurement_notes` (camera plane requirements), and `evidence` (source citation).
+
+### Four-Tier Severity Model
+
+| Tier | Color | Action |
+|------|-------|--------|
+| optimal | Green | No action — within safe range |
+| warning | Yellow | Monitor — minor compensation trending toward risk |
+| high_risk | Orange | Reduce load or terminate set |
+| critical | Red | Stop immediately — imminent injury risk |
+
+### Camera Requirements by Rule Category
+
+| Rule Category | Sagittal (2D) | Frontal | 3D Dual-Cam |
+|---------------|:---:|:---:|:---:|
+| Squat depth, trunk lean, butt wink, ankle dorsiflexion | ✓ | — | — |
+| Lumbar / thoracic flexion proxies | ✓ (proxy) | — | — |
+| Knee valgus | proxy only | ✓ | ✓ (true) |
+| Shoulder abduction (bench) | — | ✓ | ✓ |
+| Lateral pelvic shift | — | ✓ | ✓ |
+
+### Phase-by-Phase Evolution
+
+| Phase | Rules Engine State |
+|-------|--------------------|
+| **1 — POC** | Browser JS; squat subset of JSC rules; 4-tier model; rep state machine + fatigue detection |
+| **2 — Alpha** | Python `RulesEngine` class loads full JSON; evaluates all sagittal-detectable rules for all 3 lifts; powers scoring API |
+| **3 — Beta** | Rule violations become XGBoost features; SHAP surfaces top rule IDs for LLM feedback generation |
+| **4 — V1** | Real-time rule evaluation <16 ms/frame server-side; audio cues from violation severity |
+| **5 — Scale** | Frontal-plane rules enabled (JSC-KNEE-001 true valgus, JSC-SHOULDER-001); all 12 JSC constraints active |
+
+---
+
 ## Phase 1 — Proof of Concept (Weeks 1–6)
 
 **Duration:** 6 weeks | **Team:** 1–2 engineers | **Infra Cost:** ~$0–500/mo
@@ -271,7 +332,7 @@ Installed via `pre-commit` framework (Python) + `husky` (Node):
 | **Week 2** | Implement angle computation for all 5 key squat joints (ankle, knee, hip, shoulder, trunk lean) |
 | **Week 3** | Build Canvas overlay renderer. Color-code by confidence. Show skeleton lines between joint pairs |
 | **Week 4** | Add video file upload and frame-by-frame processing. Synchronize angle chart with video scrubber |
-| **Week 5** | Hardcode 3 rule-based thresholds (knee valgus proxy, depth check, forward lean). Show colored flag on violation |
+| **Week 5** | Implement 4-tier severity model (warning/high_risk/critical) using thresholds from `KNOWLEDGE/movement_analysis_rules.json`. Add rep state machine (IDLE→DESCENDING→BOTTOM→ASCENDING), per-rep scoring (deduction-based, 0–100), fatigue detection (trunk lean drift + depth inconsistency), and rep history panel |
 | **Week 6** | Test on 20+ squat videos from YouTube (beginner/intermediate/advanced). Document failure modes |
 
 ### Known Risks
@@ -331,6 +392,7 @@ Installed via `pre-commit` framework (Python) + `husky` (Node):
 5. Return structured JSON: per-frame keypoints, per-rep metrics, violation flags, overall score 0–100
 6. Store results in SQLite (PostgreSQL migration in Phase 3)
 7. Basic S3 upload endpoint with presigned URL generation (AWS boto3)
+8. Implement `GET /rules` and `GET /rules/{movement}` endpoints. `RulesEngine` singleton loaded at startup from `KNOWLEDGE/movement_analysis_rules.json`. Filter rules by `applies_to_movements` and camera plane. Return threshold metadata for client display and frontend validation
 
 ### Frontend — React Migration
 
@@ -341,18 +403,39 @@ Installed via `pre-commit` framework (Python) + `husky` (Node):
 5. Rep-by-rep accordion UI: expand each rep to see angle charts and violation highlights
 6. Feedback panel: 2–3 prioritized coaching cues per set, driven by rule-based templates
 
-### Scoring Engine — Rule-Based V1
+### Scoring Engine — Rules Engine V1
 
-Implement all evidence-based thresholds as a weighted scoring function. Each violation deducts from 100 based on severity. Score buckets: 70–100 = green, 40–69 = yellow, <40 = red.
+The Phase 2 backend implements a `RulesEngine` Python class that:
 
-| Metric | Threshold | Weight | Source |
-|--------|-----------|--------|--------|
-| Knee valgus (2D proxy) | <8° low · 8–16° med · >16° high | **High (30%)** | Hewett et al. 2005 |
-| Lumbar flexion | End-range (>80% ROM) = flag | **High (25%)** | McGill; Strömback 2018 |
-| Squat depth | Hip crease below knee = pass | **Med (15%)** | IPF rulebook |
-| Trunk lean (squat) | >45° from vertical = flag | **Med (15%)** | Biomechanics literature |
-| Elbow flare (bench) | 45–70° safe · >80° high risk | **Med (20%)** | Shoulder impingement research |
-| Bar drift (deadlift) | <5 cm from body | **Med (15%)** | Spinal loading mechanics |
+1. Loads `KNOWLEDGE/movement_analysis_rules.json` at startup into a singleton
+2. Filters rules by `applies_to_movements` (current lift) and plane availability (sagittal initially)
+3. Evaluates per-frame angle measurements against 4-tier thresholds
+4. Returns `Violation` objects: `{ rule_id, severity, metric, value, threshold, phase }`
+5. Accumulates violations per-rep; scores using deduction table from `scoring` section of JSON
+6. Detects fatigue via rep-over-rep drift using `fatigue_detection` rules from schema
+
+**Sagittal-detectable rules enabled in Phase 2:**
+
+| Rule ID | Constraint | Lifts |
+|---------|-----------|-------|
+| JSC-LUMBAR-001 | Lumbar flexion proxy (trunk lean vector) | All |
+| JSC-LUMBAR-002 | Posterior pelvic tilt / butt wink | Squat, Front Squat |
+| JSC-HIP-001 | Hip flexion at end-range | Squat, Front Squat |
+| JSC-ANKLE-001 | Dorsiflexion restriction proxy | Squat |
+| JSC-THORACIC-001 | Kyphosis increase proxy | All |
+| EXEC-IPF-SQ-001 depth | Hip crease below knee landmark | Squat |
+| EXEC-IPF-BP-001 depth | Elbow below shoulder at descent | Bench |
+
+**Deduction table** (from `movement_analysis_rules.json` `scoring` section):
+- `critical`: 25–30 pts · `high_risk`: 15–20 pts · `warning`: 5–10 pts
+- One deduction per violation category per rep (worst severity wins)
+- `score = clamp(100 − Σ deductions, 0, 100)`
+
+**Score quality labels:** excellent ≥90 · good ≥75 · fair ≥55 · poor <55
+
+**API endpoints:**
+- `GET /rules/{movement}` — returns applicable rules for a lift (filtered by plane)
+- `POST /analyze` response includes `violations[]` with `rule_id` for client-side rule lookup
 
 ### Success Criteria (Gate to Phase 3)
 
@@ -382,7 +465,7 @@ Implement all evidence-based thresholds as a weighted scoring function. Each vio
 
 ### ML Scoring — Gradient Boosting Layer
 
-1. Feature engineering: per-frame angles, velocities (Δangle/Δt), variability (SD within rep), left-right symmetry, phase timing ratios
+1. Feature engineering: per-frame angles, velocities (Δangle/Δt), variability (SD within rep), left-right symmetry, phase timing ratios. **Rules engine as primary feature source:** `RulesEngine` outputs — per-frame severity distributions, worst-severity per joint, violation counts per rep phase, timing ratios — feed directly into the feature matrix. The deterministic rule engine always runs first; XGBoost calibrates the score against coach labels on top. The 60/40 rule-based/ML weighting shifts toward ML as labeled data grows, but rule violations always remain interpretable standalone outputs alongside the ML score
 2. Train XGBoost regression on annotated score labels. Baseline: 500 labeled reps per lift
 3. Platt calibration to produce well-calibrated 0–100 risk probabilities
 4. Fusion: blend rule-based score (60%) + XGBoost score (40%) initially. Shift weighting as data grows
@@ -559,6 +642,7 @@ STORAGE
 3. Enable true knee valgus/varus measurement (frontal plane) — the key accuracy upgrade
 4. Mobile app (React Native): use front + rear camera simultaneously as approximate dual-camera rig
 5. Implement camera calibration wizard: checkerboard pattern or automatic from known body segment lengths
+6. 3D triangulation unlocks frontal-plane rules from `movement_analysis_rules.json` currently bypassed: JSC-KNEE-001 (true dynamic valgus), JSC-HIP-002 (lateral pelvic shift asymmetry), JSC-SHOULDER-001 (shoulder abduction on bench). All three carry `detection_priority: 1` — the highest in the schema
 
 ### Competition Prep Suite (Months 13–17)
 

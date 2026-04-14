@@ -6,9 +6,33 @@
  *   webcam  — live getUserMedia stream, wall-clock time, stop button
  */
 
-import { extractSquatAngles, checkSquatViolations } from './angles.js';
+import {
+  extractSquatAngles,
+  checkSquatViolations,
+  createRepState,
+  updateRepStateMachine,
+  accumulateViolationsToCurrentRep,
+  scoreRep,
+  scoreQuality,
+  checkFatigue,
+} from './angles.js';
 import { drawSkeleton, drawAngleLabel } from './renderer.js';
-import { initChart, appendAngle, updatePlayhead, resetChart } from './chart.js';
+import {
+  initChart,
+  appendAngle,
+  appendTrunkLean,
+  addRepBottomMarker,
+  updatePlayhead,
+  resetChart,
+} from './chart.js';
+import {
+  computeDangerProximity,
+  setRadarProximity,
+  tickRadar,
+  setRadarMuted,
+  isRadarMuted,
+} from './sound.js';
+import { loadRules } from './rules.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const videoInput        = document.getElementById('video-input');
@@ -22,6 +46,7 @@ const scrubber        = document.getElementById('scrubber');
 const playPauseBtn    = document.getElementById('play-pause');
 const stopWebcamBtn   = document.getElementById('stop-webcam');
 const timeDisplay     = document.getElementById('time-display');
+const muteRadarBtn    = document.getElementById('mute-radar');
 const webcamBadge     = document.getElementById('webcam-badge');
 const analysisSection = document.getElementById('analysis-section');
 const chartSection    = document.getElementById('chart-section');
@@ -29,6 +54,17 @@ const violationsEl    = document.getElementById('violations');
 const violationList   = document.getElementById('violation-list');
 const angleChartCanvas= document.getElementById('angle-chart');
 const debugLog        = document.getElementById('debug-log');
+
+// Rep / score UI
+const repStatusEl       = document.getElementById('rep-status');
+const repCounterEl      = document.getElementById('rep-counter');
+const repScoreBadgeEl   = document.getElementById('rep-score-badge');
+const sessionScoreEl    = document.getElementById('session-score');
+const fatigueBannerEl   = document.getElementById('fatigue-banner');
+const repHistoryPanel   = document.getElementById('rep-history-panel');
+const repHistoryToggle  = document.getElementById('rep-history-toggle');
+const repHistoryList    = document.getElementById('rep-history-list');
+const repHistoryChevron = document.getElementById('rep-history-chevron');
 
 // ── State ─────────────────────────────────────────────────────────────────────
 /** @type {'idle'|'video'|'webcam'} */
@@ -52,6 +88,10 @@ let lastProcessedT  = -1;
 
 const PROCESS_INTERVAL_SEC = 1 / 30; // ~30 FPS
 
+// Rep state
+let repState = createRepState();
+const repScores = [];
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function log(msg) {
   const line = `[${new Date().toISOString().slice(11, 23)}] ${msg}`;
@@ -71,7 +111,23 @@ function resetState() {
   processingFrame  = false;
   cancelAnimationFrame(animFrameId);
   resetChart();
+  setRadarProximity(0, 880);
   violationsEl.classList.add('hidden');
+
+  // Reset rep tracking
+  repState = createRepState();
+  repScores.length = 0;
+  repStatusEl.classList.add('hidden');
+  fatigueBannerEl.classList.add('hidden');
+  fatigueBannerEl.removeAttribute('data-severity');
+  repHistoryPanel.classList.add('hidden');
+  repHistoryList.innerHTML = '';
+  repHistoryList.classList.add('hidden');
+  repHistoryChevron.textContent = '▼';
+  repCounterEl.textContent = 'Rep 0';
+  repScoreBadgeEl.textContent = '—';
+  repScoreBadgeEl.removeAttribute('data-quality');
+  sessionScoreEl.textContent = '';
 }
 
 // ── MediaPipe init ────────────────────────────────────────────────────────────
@@ -105,22 +161,57 @@ function onPoseResults(results) {
 
   const lm     = results.poseLandmarks;
   const angles = extractSquatAngles(lm);
-  const viols  = checkSquatViolations(angles, lm);
   const t      = currentTimeSec();
 
-  frameData.push({ time: t, ...angles, violations: viols });
+  // 1. Advance rep state machine (sets repState.phase for this frame)
+  const { completedRep } = updateRepStateMachine(repState, angles.kneeAngle, angles, t);
 
+  // 2. Compute violations with current phase context
+  const viols = checkSquatViolations(angles, lm, 0.5, repState.phase);
+
+  // 3. Accumulate violations into the active rep
+  accumulateViolationsToCurrentRep(repState, viols);
+
+  // 4. Handle completed rep
+  if (completedRep) {
+    completedRep.score = scoreRep(completedRep);
+    repScores.push(completedRep.score);
+
+    const fatigueAlerts = checkFatigue(repState.repHistory);
+    updateFatigueBanner(fatigueAlerts);
+    updateRepHistoryPanel(completedRep);
+
+    if (completedRep.bottomTime != null) {
+      addRepBottomMarker(completedRep.bottomTime, completedRep.minKneeAngle);
+    }
+
+    const avg = repScores.reduce((a, b) => a + b, 0) / repScores.length;
+    sessionScoreEl.textContent = `Session avg: ${avg.toFixed(0)}/100`;
+
+    log(`Rep ${completedRep.repNumber} complete — score ${completedRep.score}/100, knee ${completedRep.minKneeAngle.toFixed(1)}°, TUT ${completedRep.timeUnderTension.toFixed(1)}s`);
+  }
+
+  // 5. Store frame
+  frameData.push({ time: t, ...angles, violations: viols, phase: repState.phase });
+
+  // 6. Audio radar
+  const { proximity, freq } = computeDangerProximity(angles, lm);
+  setRadarProximity(proximity, freq);
+
+  // 7. Render
   overlay.width  = overlay.offsetWidth;
   overlay.height = overlay.offsetHeight;
 
   drawSkeleton(overlay, lm);
   drawAngleLabel(overlay, lm, angles.kneeAngle);
   appendAngle(t, angles.kneeAngle);
+  appendTrunkLean(t, angles.trunkLean);
   updatePlayhead(t);
   updateViolationPanel(viols);
+  updateRepStatusBar();
 
   if (!isNaN(angles.kneeAngle)) {
-    log(`t=${t.toFixed(2)}s | knee=${angles.kneeAngle.toFixed(1)}° trunk=${angles.trunkLean.toFixed(1)}° viols=${viols.length}`);
+    log(`t=${t.toFixed(2)}s | ${repState.phase} | knee=${angles.kneeAngle.toFixed(1)}° trunk=${angles.trunkLean.toFixed(1)}° viols=${viols.length}`);
   }
 }
 
@@ -140,9 +231,68 @@ function updateViolationPanel(violations) {
   }
 }
 
+// ── Rep UI helpers ────────────────────────────────────────────────────────────
+function updateRepStatusBar() {
+  if (repState.repCount === 0 && repState.phase === 'IDLE') return;
+  repStatusEl.classList.remove('hidden');
+  repCounterEl.textContent = `Rep ${repState.repCount}`;
+}
+
+function updateFatigueBanner(alerts) {
+  if (!alerts || alerts.length === 0) return;
+  const RANK = { critical: 3, high_risk: 2, warning: 1 };
+  const worst = [...alerts].sort((a, b) => RANK[b.severity] - RANK[a.severity])[0];
+  fatigueBannerEl.textContent = worst.message;
+  fatigueBannerEl.dataset.severity = worst.severity;
+  fatigueBannerEl.classList.remove('hidden');
+}
+
+function updateRepHistoryPanel(repData) {
+  repHistoryPanel.classList.remove('hidden');
+
+  const q = scoreQuality(repData.score);
+
+  // Update live score badge
+  repScoreBadgeEl.textContent = `${repData.score}/100`;
+  repScoreBadgeEl.dataset.quality = q;
+
+  // Deduplicate violation types for the summary line
+  const uniqueTypes = [...new Set(repData.violations.map((v) => v.type))];
+  const violSummary = uniqueTypes.length > 0
+    ? uniqueTypes.map((t) => t.replace(/_/g, ' ')).join(', ')
+    : 'No violations';
+
+  const kneeStr = repData.minKneeAngle === Infinity
+    ? '—'
+    : `${repData.minKneeAngle.toFixed(1)}°`;
+
+  const li = document.createElement('li');
+  li.className = 'rep-history-item';
+  li.innerHTML = `
+    <span class="rep-num">#${repData.repNumber}</span>
+    <div>
+      <div class="rep-stats">
+        <span>Knee: ${kneeStr}</span>
+        <span>Trunk: ${repData.maxTrunkLean.toFixed(1)}°</span>
+        <span>TUT: ${repData.timeUnderTension.toFixed(1)}s</span>
+      </div>
+      <div class="rep-viols-mini">${violSummary}</div>
+    </div>
+    <span class="rep-mini-score" data-quality="${q}">${repData.score}/100</span>
+  `;
+  repHistoryList.appendChild(li);
+}
+
+repHistoryToggle.addEventListener('click', () => {
+  const isHidden = repHistoryList.classList.toggle('hidden');
+  repHistoryChevron.textContent = isHidden ? '▼' : '▲';
+});
+
 // ── Processing loop (shared) ──────────────────────────────────────────────────
-function processLoop() {
+function processLoop(timestamp = 0) {
   if (!isProcessing) return;
+
+  tickRadar(timestamp);
 
   const t  = currentTimeSec();
   const dt = t - lastProcessedT;
@@ -332,19 +482,41 @@ function logSummary() {
   const minKnee  = Math.min(...valid.map((f) => f.kneeAngle));
   const maxTrunk = Math.max(...valid.map((f) => f.trunkLean));
   const totalViol= frameData.reduce((n, f) => n + f.violations.length, 0);
+  const avgScore = repScores.length > 0
+    ? (repScores.reduce((a, b) => a + b, 0) / repScores.length).toFixed(1)
+    : 'N/A';
 
   log('── Summary ─────────────────────────────');
   log(`Frames analyzed : ${valid.length}`);
+  log(`Reps completed  : ${repState.repCount}`);
   log(`Min knee angle  : ${minKnee.toFixed(1)}°`);
   log(`Max trunk lean  : ${maxTrunk.toFixed(1)}°`);
   log(`Total violations: ${totalViol}`);
   log(`Depth check     : ${minKnee < 100 ? 'PASS' : 'FAIL'}`);
+  log(`Session score   : ${avgScore}/100`);
+  if (repScores.length > 0) {
+    log(`Per-rep scores  : ${repScores.join(', ')}`);
+  }
   log('────────────────────────────────────────');
 
-  window.__pmfaFrameData = frameData;
-  log('Raw data at window.__pmfaFrameData');
+  window.__pmfaFrameData  = frameData;
+  window.__pmfaRepHistory = repState.repHistory;
+  log('Raw data: window.__pmfaFrameData, window.__pmfaRepHistory');
 }
+
+// ── Mute button ───────────────────────────────────────────────────────────────
+muteRadarBtn.addEventListener('click', () => {
+  const muted = !isRadarMuted();
+  setRadarMuted(muted);
+  muteRadarBtn.textContent = muted ? '🔇' : '🔔';
+  muteRadarBtn.title = muted ? 'Unmute radar alerts' : 'Mute radar alerts';
+});
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 initChart(angleChartCanvas);
+loadRules().then((fromJson) => {
+  log(fromJson
+    ? 'Rules loaded from movement_analysis_rules.json.'
+    : 'Rules fallback: using built-in defaults (JSON not reachable).');
+});
 log('PMFA POC initialized. Upload a video or open webcam.');

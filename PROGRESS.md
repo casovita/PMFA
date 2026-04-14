@@ -12,6 +12,8 @@
 - [x] Plot live knee angle graph (Chart.js) synced to video playback + scrubber
 - [x] Rule-based violation flags: depth check, trunk lean, knee valgus proxy
 - [x] Live webcam mode via `getUserMedia` with wall-clock timing and stop button
+- [x] Radar audio alerts (Web Audio API beeps, pitch/rate tied to danger proximity, mutable)
+- [x] Thresholds loaded from `KNOWLEDGE/movement_analysis_rules.json` at startup (no hardcoded values in angles.js)
 - [ ] Verify 2D sagittal accuracy within ~10° on 15+ known clips (manual QA)
 - [ ] Document barbell occlusion failure modes with frame counts
 
@@ -21,8 +23,11 @@
   - `renderer.js` — BlazePose skeleton overlay, confidence color-coding, angle label
   - `chart.js` — Chart.js knee angle time-series with live playhead
   - `main.js` — two modes: video upload (play/pause/scrubber) + live webcam (getUserMedia, wall-clock time, stop button)
+  - `sound.js` — Web Audio API radar beeps; pitch and rate scale with danger proximity; mutable
+  - `rules.js` — fetches `KNOWLEDGE/movement_analysis_rules.json` at startup; exposes `THRESHOLDS` consumed by angles.js; falls back to defaults if JSON unreachable
   - `index.html` / `style.css` — dark-theme UI, video + overlay layout, violation panel
-- `frontend/poc/package.json` — `npm run dev` serves on port 5173
+- `KNOWLEDGE/movement_analysis_rules.json` — canonical ruleset (JSC constraints, execution standards, scoring)
+- `frontend/poc/package.json` — `npm run dev` serves repo root on port 5173
 - `.gitignore`, `CLAUDE.md` — project scaffolding
 
 ### To Run
@@ -30,7 +35,7 @@
 cd frontend/poc
 npm install
 npm run dev
-# → http://localhost:5173
+# → http://localhost:5173/frontend/poc/   (server root = repo root so /KNOWLEDGE/ is reachable)
 ```
 
 ### Success Criteria

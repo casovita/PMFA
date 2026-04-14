@@ -4,7 +4,7 @@
   "private": true,
   "description": "PMFA Phase 1 POC — BlazePose squat analysis in vanilla JS",
   "scripts": {
-    "dev": "npx serve . --listen 5173 --no-clipboard",
+    "dev": "npx serve ../.. --listen 5173 --no-clipboard",
     "start": "npm run dev"
   },
   "devDependencies": {
