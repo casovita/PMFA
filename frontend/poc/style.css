@@ -109,6 +109,16 @@ header .subtitle { font-size: 1rem; font-weight: 400; color: #888; margin-left: 
 #stop-webcam:hover { background: #b91c1c; }
 #scrubber { flex: 1; accent-color: #2563eb; }
 #time-display { font-size: 0.85rem; color: #888; white-space: nowrap; }
+#mute-radar {
+  background: none;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 0.25rem 0.45rem;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+#mute-radar:hover { border-color: #888; }
 
 /* Live badge */
 #webcam-badge {
@@ -139,7 +149,7 @@ header .subtitle { font-size: 1rem; font-weight: 400; color: #888; margin-left: 
   padding: 0.2rem 0;
   color: #fca5a5;
 }
-#violation-list li::before { content: "⚠ "; }
+/* severity-specific icons and colors applied below */
 
 /* Chart */
 #chart-section {
@@ -171,3 +181,93 @@ header .subtitle { font-size: 1rem; font-weight: 400; color: #888; margin-left: 
 .hidden { display: none !important; }
 
 section + section { margin-top: 1rem; }
+
+/* ── 4-tier severity for violation list items ──────────────────────────────── */
+#violation-list li[data-severity="warning"]   { color: #facc15; }
+#violation-list li[data-severity="high_risk"] { color: #fb923c; }
+#violation-list li[data-severity="critical"]  { color: #f87171; }
+#violation-list li[data-severity="warning"]::before   { content: "⚠ "; }
+#violation-list li[data-severity="high_risk"]::before { content: "⚠ "; }
+#violation-list li[data-severity="critical"]::before  { content: "✖ "; }
+
+/* ── Rep status bar ────────────────────────────────────────────────────────── */
+#rep-status {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  font-size: 0.9rem;
+}
+#rep-counter { font-weight: 700; color: #e0e0e0; }
+#rep-score-badge {
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: #1f2937;
+  color: #9ca3af;
+}
+#rep-score-badge[data-quality="excellent"] { background: #14532d; color: #4ade80; }
+#rep-score-badge[data-quality="good"]      { background: #1a3a1a; color: #86efac; }
+#rep-score-badge[data-quality="fair"]      { background: #422006; color: #fde68a; }
+#rep-score-badge[data-quality="poor"]      { background: #450a0a; color: #fca5a5; }
+#session-score { font-size: 0.8rem; color: #6b7280; margin-left: auto; }
+
+/* ── Fatigue alert banner ───────────────────────────────────────────────────── */
+#fatigue-banner {
+  margin-top: 0.5rem;
+  padding: 0.6rem 1rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+#fatigue-banner[data-severity="warning"]   { background: #422006; border-left: 3px solid #facc15; color: #fde68a; }
+#fatigue-banner[data-severity="high_risk"] { background: #431407; border-left: 3px solid #fb923c; color: #fed7aa; }
+#fatigue-banner[data-severity="critical"]  { background: #450a0a; border-left: 3px solid #f87171; color: #fecaca; }
+
+/* ── Per-rep history panel ─────────────────────────────────────────────────── */
+#rep-history-panel {
+  margin-top: 0.75rem;
+  background: #1a1a1a;
+  border-radius: 4px;
+  overflow: hidden;
+}
+#rep-history-toggle {
+  width: 100%;
+  background: #222;
+  border: none;
+  color: #888;
+  padding: 0.5rem 1rem;
+  text-align: left;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  font-family: inherit;
+}
+#rep-history-toggle:hover { background: #2a2a2a; color: #ccc; }
+#rep-history-list { list-style: none; max-height: 300px; overflow-y: auto; }
+.rep-history-item {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #222;
+  font-size: 0.8rem;
+  display: grid;
+  grid-template-columns: 2.5rem 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+.rep-history-item:last-child { border-bottom: none; }
+.rep-num { font-weight: 700; color: #6b7280; }
+.rep-stats { color: #9ca3af; }
+.rep-stats span { margin-right: 0.75rem; }
+.rep-viols-mini { margin-top: 0.15rem; color: #6b7280; font-size: 0.73rem; grid-column: 2; }
+.rep-mini-score {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.15rem 0.4rem;
+  border-radius: 8px;
+}
+.rep-mini-score[data-quality="excellent"] { background: #14532d; color: #4ade80; }
+.rep-mini-score[data-quality="good"]      { background: #1a3a1a; color: #86efac; }
+.rep-mini-score[data-quality="fair"]      { background: #422006; color: #fde68a; }
+.rep-mini-score[data-quality="poor"]      { background: #450a0a; color: #fca5a5; }
