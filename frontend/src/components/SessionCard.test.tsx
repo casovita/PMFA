@@ -96,7 +96,7 @@ describe('SessionCard — interactions', () => {
     expect(props.onDelete).toHaveBeenCalledOnce();
   });
 
-  it('does NOT call onToggle when delete button is clicked (stopPropagation)', () => {
+  it('does NOT call onToggle when delete button is clicked', () => {
     const { props } = renderCard();
     const deleteBtn = screen.getByRole('button', { name: /delete session/i });
     fireEvent.click(deleteBtn);

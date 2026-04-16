@@ -23,37 +23,38 @@ export function SessionCard({ session, expanded, onToggle, onDelete }: Props) {
 
   return (
     <div className={styles.card} data-expanded={expanded}>
-      {/* ── Card header (click to expand) ── */}
-      <button className={styles.header} onClick={onToggle} aria-expanded={expanded}>
-        <span className={styles.liftBadge} data-lift={LIFT_COLOR[lift]}>
-          {formatLift(lift)}
-        </span>
-
-        <span className={styles.date}>{formatDate(savedAt)}</span>
-
-        <div className={styles.meta}>
-          <span className={styles.repCount}>{aggregate.repCount} reps</span>
-          <span className={styles.avgScore} data-quality={avgQ}>
-            {aggregate.avgScore.toFixed(0)}/100
+      {/* ── Header row: expand button + delete button are siblings, never nested ── */}
+      <div className={styles.headerRow}>
+        <button className={styles.header} onClick={onToggle} aria-expanded={expanded}>
+          <span className={styles.liftBadge} data-lift={LIFT_COLOR[lift]}>
+            {formatLift(lift)}
           </span>
-        </div>
 
-        <div className={styles.sparklineWrap}>
-          <ScoreSparkline scores={aggregate.scores} />
-        </div>
+          <span className={styles.date}>{formatDate(savedAt)}</span>
 
-        <div className={styles.actions}>
-          <button
-            className={styles.deleteBtn}
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            aria-label="Delete session"
-            title="Delete session"
-          >
-            ✕
-          </button>
+          <div className={styles.meta}>
+            <span className={styles.repCount}>{aggregate.repCount} reps</span>
+            <span className={styles.avgScore} data-quality={avgQ}>
+              {aggregate.avgScore.toFixed(0)}/100
+            </span>
+          </div>
+
+          <div className={styles.sparklineWrap}>
+            <ScoreSparkline scores={aggregate.scores} />
+          </div>
+
           <span className={styles.chevron}>{expanded ? '▲' : '▼'}</span>
-        </div>
-      </button>
+        </button>
+
+        <button
+          className={styles.deleteBtn}
+          onClick={onDelete}
+          aria-label="Delete session"
+          title="Delete session"
+        >
+          ✕
+        </button>
+      </div>
 
       {/* ── Expanded detail ── */}
       {expanded && <SessionDetail reps={session.reps} lift={lift} />}
