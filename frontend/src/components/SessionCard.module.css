@@ -1,0 +1,122 @@
+.card {
+  background: #111;
+  border: 1px solid #1e1e1e;
+  border-radius: 6px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.card[data-expanded='true'] {
+  border-color: #2a2a2a;
+}
+
+/* ── Header row ── */
+
+.header {
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  text-align: left;
+  flex-wrap: wrap;
+}
+
+.header:hover {
+  background: #161616;
+}
+
+/* Lift type badge */
+.liftBadge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.liftBadge[data-lift='squat']    { background: #14532d; color: #4ade80; }
+.liftBadge[data-lift='deadlift'] { background: #1e3a5f; color: #60a5fa; }
+.liftBadge[data-lift='bench']    { background: #431407; color: #fb923c; }
+
+/* Date */
+.date {
+  font-size: 0.78rem;
+  color: #6b7280;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Rep count + avg score */
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.repCount {
+  font-size: 0.78rem;
+  color: #4b5563;
+  white-space: nowrap;
+}
+
+.avgScore {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.avgScore[data-quality='excellent'] { background: #14532d; color: #4ade80; }
+.avgScore[data-quality='good']      { background: #1a3a1a; color: #86efac; }
+.avgScore[data-quality='fair']      { background: #422006; color: #fde68a; }
+.avgScore[data-quality='poor']      { background: #450a0a; color: #fca5a5; }
+
+/* Sparkline */
+.sparklineWrap {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+/* Delete + chevron */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.deleteBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.7rem;
+  color: #374151;
+  padding: 0.2rem 0.3rem;
+  border-radius: 3px;
+  font-family: inherit;
+  transition: color 0.15s, background 0.15s;
+  line-height: 1;
+}
+
+.deleteBtn:hover {
+  color: #fca5a5;
+  background: #450a0a;
+}
+
+.chevron {
+  font-size: 0.65rem;
+  color: #374151;
+}

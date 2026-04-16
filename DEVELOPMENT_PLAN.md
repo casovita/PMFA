@@ -396,12 +396,13 @@ Each constraint entry contains: `id` (stable, e.g. `JSC-KNEE-001`), `thresholds`
 
 ### Frontend — React Migration
 
-1. Migrate from vanilla JS to React + TypeScript + Vite build pipeline
-2. Component architecture: `VideoCapture`, `PoseOverlay`, `AngleDashboard`, `LiftSelector`, `RepTimeline`
-3. Move BlazePose inference to Web Worker to prevent UI thread blocking
-4. Camera positioning guide overlay: show target framing box and distance indicator
-5. Rep-by-rep accordion UI: expand each rep to see angle charts and violation highlights
-6. Feedback panel: 2–3 prioritized coaching cues per set, driven by rule-based templates
+1. ✅ Migrate from vanilla JS to React + TypeScript + Vite build pipeline
+2. ✅ Component architecture: `VideoCapture`, `PoseOverlay`, `AngleDashboard`, `LiftSelector`, `RepTimeline`
+3. ✅ Move BlazePose inference to Web Worker to prevent UI thread blocking
+4. ✅ Camera positioning guide overlay: SVG tooltip illustrations per lift (sagittal + bench diagrams)
+5. ✅ Rep-by-rep session history: localStorage persistence, session cards with sparklines, per-rep detail table, cross-session trend chart
+6. ✅ Violation snapshots: JPEG frame capture on worst high_risk/critical frame per rep; glowing joint highlights; lightbox in history table
+7. Feedback panel: 2–3 prioritized coaching cues per set, driven by rule-based templates (Phase 3)
 
 ### Scoring Engine — Rules Engine V1
 

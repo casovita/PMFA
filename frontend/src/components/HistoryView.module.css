@@ -1,0 +1,63 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* ── Filter row ── */
+
+.filterRow {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.filterBtn {
+  padding: 0.3rem 0.8rem;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  background: #111;
+  color: #6b7280;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.filterBtn:hover {
+  color: #9ca3af;
+  border-color: #374151;
+}
+
+.filterBtn[data-active='true'] {
+  border-color: #2563eb;
+  background: #1e3a5f;
+  color: #93c5fd;
+}
+
+/* ── Session list ── */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* ── Empty state ── */
+
+.empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.emptyTitle {
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+.emptyHint {
+  color: #374151;
+  font-size: 0.78rem;
+}

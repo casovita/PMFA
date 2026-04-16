@@ -18,25 +18,9 @@
 - [ ] Document barbell occlusion failure modes with frame counts
 
 ### Completed
-- `frontend/poc/` — full vanilla JS + Canvas POC
-  - `angles.js` — `atan2` angle math for knee, hip, ankle, trunk lean; violation checker
-  - `renderer.js` — BlazePose skeleton overlay, confidence color-coding, angle label
-  - `chart.js` — Chart.js knee angle time-series with live playhead
-  - `main.js` — two modes: video upload (play/pause/scrubber) + live webcam (getUserMedia, wall-clock time, stop button)
-  - `sound.js` — Web Audio API radar beeps; pitch and rate scale with danger proximity; mutable
-  - `rules.js` — fetches `KNOWLEDGE/movement_analysis_rules.json` at startup; exposes `THRESHOLDS` consumed by angles.js; falls back to defaults if JSON unreachable
-  - `index.html` / `style.css` — dark-theme UI, video + overlay layout, violation panel
 - `KNOWLEDGE/movement_analysis_rules.json` — canonical ruleset (JSC constraints, execution standards, scoring)
-- `frontend/poc/package.json` — `npm run dev` serves repo root on port 5173
 - `.gitignore`, `CLAUDE.md` — project scaffolding
-
-### To Run
-```bash
-cd frontend/poc
-npm install
-npm run dev
-# → http://localhost:5173/frontend/poc/   (server root = repo root so /KNOWLEDGE/ is reachable)
-```
+- POC deleted — all functionality ported to Phase 2 React app (`frontend/`)
 
 ### Success Criteria
 - [ ] BlazePose runs at 20+ FPS on desktop Chrome
@@ -47,7 +31,44 @@ npm run dev
 ---
 
 ## Phase 2 — Alpha (Weeks 7–16)
-**Status:** Not Started
+**Status:** In Progress
+
+### Completed
+- `frontend/` — React + TypeScript + Vite scaffold
+  - `tsconfig.json` — strict TypeScript, no `any`
+  - `vite.config.ts` — ES worker format, repo root served for `/KNOWLEDGE/`
+  - `eslint.config.js` + `.prettierrc` — strict ESLint + Prettier
+  - `src/types.ts` — shared types: `LiftType`, `Landmark`, `SquatAngles`, `RepState`, `RepData`, worker message protocol
+  - `src/lib/angles.ts` — typed port of POC angle math, rep state machine, scoring, fatigue detection
+  - `src/lib/renderer.ts` — typed port of POC skeleton renderer
+  - `src/lib/rules.ts` — typed port of POC rules loader
+  - `src/workers/pose.worker.ts` — BlazePose inference moved to Web Worker (unblocks UI thread)
+  - `src/components/LiftSelector.tsx` — squat / deadlift / bench toggle
+  - `src/components/VideoCapture.tsx` — file upload + webcam modes
+  - `src/components/PoseOverlay.tsx` — canvas overlay with imperative draw handle
+  - `src/components/AngleDashboard.tsx` — live metrics, violations, rep status, fatigue banner
+  - `src/components/RepTimeline.tsx` — collapsible per-rep history panel
+  - `src/App.tsx` — root orchestrator wiring all components + worker
+
+### Completed (continued)
+- `src/lib/angles.ts` — deadlift: `extractDeadliftAngles`, `checkDeadliftViolations` (lumbar, bar drift, hip lockout); bench: `extractBenchAngles`, `checkBenchViolations` (elbow depth EXEC-IPF-BP-001, elbow flare, lockout)
+- `src/lib/angles.ts` — unified `updateRepStateMachine` with `RepMachineConfig` (squat / deadlift / bench thresholds); `scoreRep` extended with all 11 violation types
+- `src/lib/renderer.ts` — `drawAngleLabel` now lift-aware (knee/hip/elbow label + correct landmark anchor)
+- `src/lib/renderer.ts` — `captureSnapshot(video, landmarks, violations)`: captures JPEG frame at worst high_risk/critical violation; draws skeleton + glowing joint highlights (concentric rings per severity) on offscreen canvas
+- `src/App.tsx` — `onLandmarks` dispatches to correct extract/check per `lift` via `liftRef`; `AngleChart` wired in
+- `src/App.tsx` — `snapshotWorstRankRef` tracks worst violation rank per rep; triggers `captureSnapshot` when rank improves; resets on rep completion
+- `src/components/AngleDashboard.tsx` — lift-aware metric strips (squat/deadlift/bench)
+- `src/components/RepTimeline.tsx` — uses `rep.lift` for per-rep primary angle label
+- `src/components/AngleChart.tsx` — Chart.js 4 angle time-series (primary angle vs time, last 300 frames)
+- `src/components/CameraGuide.tsx` — camera positioning guide with SVG tooltip illustrations (sagittal/bench diagrams, hover+click, outside-click close)
+- `src/lib/historyStore.ts` — localStorage persistence (`pmfa_sessions_v1`); `saveSession`, `loadSessions`, `deleteSession`, `computeAggregate`; max 50 sessions, QuotaExceededError handled
+- `src/lib/formatters.ts` — shared `qualityLabel`, `formatDate`, `formatLift` utilities
+- `src/components/HistoryView.tsx` — session history browser: lift filter, TrendChart, SessionCard list, empty state
+- `src/components/SessionCard.tsx` — session card: lift badge, date, rep count, avg score badge, ScoreSparkline, delete, expand/collapse
+- `src/components/SessionDetail.tsx` — per-rep table with two-line column headers (label + muted subtitle); snapshot column with 80px thumbnail + click-to-open lightbox
+- `src/components/ScoreSparkline.tsx` — pure SVG polyline sparkline (no Chart.js); handles 0/1/N scores; color-coded by last rep quality
+- `src/components/TrendChart.tsx` — Chart.js line chart: avg score per session per lift (≥3 sessions required to render)
+- `src/App.tsx` — `view: 'analyze' | 'history'` toggle; `repHistoryRef` (stale-closure-safe history snapshot); `savedFeedback` toast (auto-dismiss 2.5 s); `historyVersion` counter forces re-read of localStorage after delete
 
 ---
 

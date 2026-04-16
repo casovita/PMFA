@@ -1,0 +1,20 @@
+.root {
+  background: #111;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #4b5563;
+}
+
+.chartWrap {
+  position: relative;
+  height: 160px;
+}

@@ -1,0 +1,104 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Metric strip */
+.metrics {
+  display: flex;
+  gap: 1.5rem;
+  padding: 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.metricLabel {
+  font-size: 0.7rem;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.metricValue {
+  font-variant-numeric: tabular-nums;
+  color: #e0e0e0;
+  font-weight: 600;
+}
+
+/* Rep status */
+.repStatus {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.9rem;
+}
+
+.repCounter {
+  font-weight: 700;
+  color: #e0e0e0;
+}
+
+.scoreBadge {
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: #1f2937;
+  color: #9ca3af;
+}
+
+.scoreBadge[data-quality='excellent'] { background: #14532d; color: #4ade80; }
+.scoreBadge[data-quality='good']      { background: #1a3a1a; color: #86efac; }
+.scoreBadge[data-quality='fair']      { background: #422006; color: #fde68a; }
+.scoreBadge[data-quality='poor']      { background: #450a0a; color: #fca5a5; }
+
+.sessionAvg {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-left: auto;
+}
+
+/* Fatigue banner */
+.fatigueBanner {
+  padding: 0.6rem 1rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.fatigueBanner[data-severity='warning']   { background: #422006; border-left: 3px solid #facc15; color: #fde68a; }
+.fatigueBanner[data-severity='high_risk'] { background: #431407; border-left: 3px solid #fb923c; color: #fed7aa; }
+.fatigueBanner[data-severity='critical']  { background: #450a0a; border-left: 3px solid #f87171; color: #fecaca; }
+
+/* Violations */
+.violations {
+  background: #1a1a1a;
+  border-left: 3px solid #ef4444;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+}
+
+.violTitle {
+  font-size: 0.9rem;
+  color: #ef4444;
+  margin-bottom: 0.4rem;
+}
+
+.violList {
+  list-style: none;
+}
+
+.violItem {
+  font-size: 0.85rem;
+  padding: 0.2rem 0;
+}
+
+.violItem[data-severity='warning']   { color: #facc15; }
+.violItem[data-severity='high_risk'] { color: #fb923c; }
+.violItem[data-severity='critical']  { color: #f87171; }
