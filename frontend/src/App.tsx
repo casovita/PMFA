@@ -34,6 +34,12 @@ import {
 } from './lib/angles';
 import { loadRules } from './lib/rules';
 import { captureSnapshot } from './lib/renderer';
+import {
+  computeDangerProximity,
+  setRadarProximity,
+  tickRadar,
+  setRadarMuted as radarSetMuted,
+} from './lib/audioRadar';
 import { saveSession, deleteSession, loadSessions } from './lib/historyStore';
 import styles from './App.module.css';
 
@@ -75,6 +81,9 @@ export default function App() {
   const [historyVersion, setHistoryVersion] = useState(0);
   const [savedFeedback, setSavedFeedback] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+
+  // Audio radar
+  const [radarMuted, setRadarMuted] = useState(false);
 
   // Mutable refs (not state — no render needed per frame)
   const poseRef           = useRef<PoseInstance | null>(null);
@@ -215,6 +224,10 @@ export default function App() {
       }
     }
 
+    // Update audio radar proximity
+    const { proximity, freq } = computeDangerProximity(angles, lm, currentLift);
+    setRadarProximity(proximity, freq);
+
     overlayRef.current?.draw(lm, primaryAngle, currentLift);
     setCurrentAngles(angles);
     setPhase(repStateRef.current.phase);
@@ -241,9 +254,11 @@ export default function App() {
   }
 
   // ── Processing loop ─────────────────────────────────────────────────────────
-  const processLoop = useCallback(() => {
+  const processLoop = useCallback((timestamp: DOMHighResTimeStamp = 0) => {
     const video = videoRef.current;
     if (!video) return;
+
+    tickRadar(timestamp);
 
     const pose = poseRef.current;
     if (!pose) {
@@ -289,6 +304,7 @@ export default function App() {
     setRepHistory([]);
     setFrameData([]);
     overlayRef.current?.clear();
+    setRadarProximity(0, 880);
   }, [stopLoop]);
 
   // ── Video handlers ──────────────────────────────────────────────────────────
@@ -347,6 +363,18 @@ export default function App() {
           <span className={styles.rulesNote}>Rules: built-in defaults</span>
         )}
         <div className={styles.viewToggle}>
+          <button
+            className={styles.muteBtn}
+            onClick={() => {
+              const next = !radarMuted;
+              radarSetMuted(next);
+              setRadarMuted(next);
+            }}
+            title={radarMuted ? 'Unmute audio alerts' : 'Mute audio alerts'}
+            aria-label={radarMuted ? 'Unmute audio alerts' : 'Mute audio alerts'}
+          >
+            {radarMuted ? '🔇' : '🔔'}
+          </button>
           <button
             className={styles.viewBtn}
             data-active={view === 'analyze'}
