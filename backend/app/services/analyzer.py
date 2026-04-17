@@ -25,6 +25,7 @@ from sqlmodel import Session
 from app.models.job import AnalysisJob
 from app.schemas.analysis import FrameKeypoints, RepMetrics, ViolationFlag
 from app.services.biomechanics import (
+    AngleSmoother,
     CompletedRep,
     RepSegmenter,
     extract_angles,
@@ -114,6 +115,7 @@ def run_analysis(
         # ── Steps 3–4: per-frame evaluation + rep segmentation ───────────────
         movement = job.movement or "squat"
         segmenter = RepSegmenter(movement)
+        smoother  = AngleSmoother()          # One Euro Filter — one per job
         completed_reps: list[CompletedRep] = []
         all_violations: list[ViolationFlag] = []
         locked_side: str | None = None
@@ -128,7 +130,8 @@ def run_analysis(
             if locked_side is None:
                 locked_side = pick_side(kps)
 
-            angles = extract_angles(kps, side=locked_side)
+            raw_angles = extract_angles(kps, side=locked_side)
+            angles     = smoother.smooth(frame.timestamp_sec, raw_angles)
             violations = scorer.evaluate_frame(movement, angles)
             all_violations.extend(violations)
 
