@@ -1,27 +1,51 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useState } from 'react';
 import styles from './VideoCapture.module.css';
 
 interface Props {
   onVideoReady: (video: HTMLVideoElement) => void;
   onWebcamReady: (video: HTMLVideoElement) => void;
   onStop: () => void;
+  onError?: (msg: string) => void;
   mode: 'idle' | 'video' | 'webcam';
 }
 
-export function VideoCapture({ onVideoReady, onWebcamReady, onStop, mode }: Props) {
+export function VideoCapture({ onVideoReady, onWebcamReady, onStop, onError, mode }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file || !videoRef.current) return;
       const video = videoRef.current;
+
+      // Revoke previous blob URL to avoid memory leaks
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+      }
+
+      setIsLoading(true);
       video.srcObject = null;
-      video.src = URL.createObjectURL(file);
-      video.onloadedmetadata = () => onVideoReady(video);
+      const url = URL.createObjectURL(file);
+      blobUrlRef.current = url;
+      video.src = url;
+
+      video.onerror = () => {
+        setIsLoading(false);
+        onError?.('Could not load video — unsupported format or corrupted file.');
+      };
+
+      video.onloadedmetadata = () => {
+        setIsLoading(false);
+        onVideoReady(video);
+      };
+
+      // Reset input so the same file can be re-selected
+      e.target.value = '';
     },
-    [onVideoReady],
+    [onVideoReady, onError],
   );
 
   const handleWebcam = useCallback(async () => {
@@ -42,9 +66,14 @@ export function VideoCapture({ onVideoReady, onWebcamReady, onStop, mode }: Prop
       onWebcamReady(video);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      alert(`Camera error: ${msg}`);
+      const friendly = msg.includes('NotAllowed') || msg.includes('Permission')
+        ? 'Camera access denied. Enable camera permission in your browser settings and try again.'
+        : msg.includes('NotFound') || msg.includes('DevicesNotFound')
+        ? 'No camera found. Connect a camera and try again.'
+        : 'Could not start camera. Please try again.';
+      onError?.(friendly);
     }
-  }, [onWebcamReady]);
+  }, [onWebcamReady, onError]);
 
   const handleStop = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -53,6 +82,11 @@ export function VideoCapture({ onVideoReady, onWebcamReady, onStop, mode }: Prop
       videoRef.current.srcObject = null;
       videoRef.current.src = '';
     }
+    if (blobUrlRef.current) {
+      URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = null;
+    }
+    setIsLoading(false);
     onStop();
   }, [onStop]);
 
@@ -73,6 +107,11 @@ export function VideoCapture({ onVideoReady, onWebcamReady, onStop, mode }: Prop
       <div className={styles.videoContainer} data-visible={mode !== 'idle' ? 'true' : undefined}>
         <video ref={videoRef} className={styles.video} playsInline muted controls={mode === 'video'} />
         {mode === 'webcam' && <span className={styles.liveBadge}>LIVE</span>}
+        {isLoading && (
+          <div className={styles.loadingOverlay}>
+            Loading video…
+          </div>
+        )}
       </div>
 
       {mode !== 'idle' && (
@@ -80,6 +119,11 @@ export function VideoCapture({ onVideoReady, onWebcamReady, onStop, mode }: Prop
           {mode === 'webcam' && (
             <button className={styles.stopBtn} onClick={handleStop}>
               Stop Camera
+            </button>
+          )}
+          {mode === 'video' && (
+            <button className={styles.stopBtn} onClick={handleStop}>
+              Stop &amp; Save
             </button>
           )}
         </div>

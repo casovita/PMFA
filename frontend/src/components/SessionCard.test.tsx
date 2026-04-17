@@ -89,17 +89,32 @@ describe('SessionCard — interactions', () => {
     expect(props.onToggle).toHaveBeenCalledOnce();
   });
 
-  it('calls onDelete when delete button is clicked', () => {
+  it('first delete click shows Confirm and Cancel buttons', () => {
+    renderCard();
+    fireEvent.click(screen.getByRole('button', { name: /delete session/i }));
+    expect(screen.getByRole('button', { name: /confirm delete/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /cancel delete/i })).toBeInTheDocument();
+  });
+
+  it('calls onDelete only after Confirm is clicked', () => {
     const { props } = renderCard();
-    const deleteBtn = screen.getByRole('button', { name: /delete session/i });
-    fireEvent.click(deleteBtn);
+    fireEvent.click(screen.getByRole('button', { name: /delete session/i }));
+    expect(props.onDelete).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /confirm delete/i }));
     expect(props.onDelete).toHaveBeenCalledOnce();
+  });
+
+  it('Cancel restores the delete button without calling onDelete', () => {
+    const { props } = renderCard();
+    fireEvent.click(screen.getByRole('button', { name: /delete session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /cancel delete/i }));
+    expect(props.onDelete).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /delete session/i })).toBeInTheDocument();
   });
 
   it('does NOT call onToggle when delete button is clicked', () => {
     const { props } = renderCard();
-    const deleteBtn = screen.getByRole('button', { name: /delete session/i });
-    fireEvent.click(deleteBtn);
+    fireEvent.click(screen.getByRole('button', { name: /delete session/i }));
     expect(props.onToggle).not.toHaveBeenCalled();
   });
 });

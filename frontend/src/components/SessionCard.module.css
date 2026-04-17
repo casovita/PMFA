@@ -120,3 +120,38 @@
   font-size: 0.65rem;
   color: #374151;
 }
+
+.confirmDeleteBtn {
+  flex-shrink: 0;
+  background: #7f1d1d;
+  border: none;
+  cursor: pointer;
+  font-size: 0.68rem;
+  color: #fca5a5;
+  padding: 0.35rem 0.6rem;
+  border-radius: 4px;
+  font-family: inherit;
+  align-self: stretch;
+  transition: background 0.15s;
+}
+
+.confirmDeleteBtn:hover {
+  background: #991b1b;
+}
+
+.cancelDeleteBtn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.68rem;
+  color: #6b7280;
+  padding: 0.35rem 0.4rem;
+  font-family: inherit;
+  align-self: stretch;
+  transition: color 0.15s;
+}
+
+.cancelDeleteBtn:hover {
+  color: #9ca3af;
+}

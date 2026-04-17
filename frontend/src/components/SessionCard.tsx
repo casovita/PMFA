@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import type { SavedSession } from '../types';
 import { qualityLabel, formatDate, formatLift } from '../lib/formatters';
 import { ScoreSparkline } from './ScoreSparkline';
@@ -20,6 +21,12 @@ interface Props {
 export function SessionCard({ session, expanded, onToggle, onDelete }: Props) {
   const { aggregate, lift, savedAt } = session;
   const avgQ = qualityLabel(aggregate.avgScore);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // Cancel confirmation when card collapses
+  useEffect(() => {
+    if (!expanded) setConfirmDelete(false);
+  }, [expanded]);
 
   return (
     <div className={styles.card} data-expanded={expanded}>
@@ -46,14 +53,33 @@ export function SessionCard({ session, expanded, onToggle, onDelete }: Props) {
           <span className={styles.chevron}>{expanded ? '▲' : '▼'}</span>
         </button>
 
-        <button
-          className={styles.deleteBtn}
-          onClick={onDelete}
-          aria-label="Delete session"
-          title="Delete session"
-        >
-          ✕
-        </button>
+        {confirmDelete ? (
+          <>
+            <button
+              className={styles.confirmDeleteBtn}
+              onClick={onDelete}
+              aria-label="Confirm delete session"
+            >
+              Confirm
+            </button>
+            <button
+              className={styles.cancelDeleteBtn}
+              onClick={() => setConfirmDelete(false)}
+              aria-label="Cancel delete"
+            >
+              Cancel
+            </button>
+          </>
+        ) : (
+          <button
+            className={styles.deleteBtn}
+            onClick={() => setConfirmDelete(true)}
+            aria-label="Delete session"
+            title="Delete session"
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       {/* ── Expanded detail ── */}

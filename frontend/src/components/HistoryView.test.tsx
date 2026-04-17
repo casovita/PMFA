@@ -178,12 +178,24 @@ describe('HistoryView — expand / collapse', () => {
 // ── Delete ────────────────────────────────────────────────────────────────────
 
 describe('HistoryView — delete', () => {
-  it('calls onDeleteSession with the correct id', () => {
+  it('calls onDeleteSession with the correct id after confirm', () => {
+    const onDelete = vi.fn();
+    const session = makeSession('squat', [makeRepData()]);
+    renderView([session], onDelete);
+    // Two-click confirmation: first click → confirm state, second click → delete
+    fireEvent.click(screen.getByRole('button', { name: /delete session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /confirm delete/i }));
+    expect(onDelete).toHaveBeenCalledWith(session.id);
+  });
+
+  it('Cancel restores the delete button without deleting', () => {
     const onDelete = vi.fn();
     const session = makeSession('squat', [makeRepData()]);
     renderView([session], onDelete);
     fireEvent.click(screen.getByRole('button', { name: /delete session/i }));
-    expect(onDelete).toHaveBeenCalledWith(session.id);
+    fireEvent.click(screen.getByRole('button', { name: /cancel delete/i }));
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /delete session/i })).toBeInTheDocument();
   });
 
   it('collapses an expanded session when it is deleted', () => {
@@ -195,6 +207,7 @@ describe('HistoryView — delete', () => {
     expect(screen.getByText('#1')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /delete session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /confirm delete/i }));
     rerender(<HistoryView sessions={[]} onDeleteSession={onDelete} />);
 
     expect(screen.queryByText('#1')).toBeNull();

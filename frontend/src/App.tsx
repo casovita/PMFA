@@ -74,6 +74,7 @@ export default function App() {
   // History
   const [historyVersion, setHistoryVersion] = useState(0);
   const [savedFeedback, setSavedFeedback] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
 
   // Mutable refs (not state — no render needed per frame)
   const poseRef           = useRef<PoseInstance | null>(null);
@@ -291,25 +292,6 @@ export default function App() {
   }, [stopLoop]);
 
   // ── Video handlers ──────────────────────────────────────────────────────────
-  const handleVideoReady = useCallback((video: HTMLVideoElement) => {
-    reset();
-    videoRef.current = video;
-    setMode('video');
-    initPose();
-    video.onplay = () => { animRef.current = requestAnimationFrame(processLoop); };
-    video.onpause = stopLoop;
-    video.onended = stopLoop;
-  }, [reset, initPose, processLoop, stopLoop]);
-
-  const handleWebcamReady = useCallback((video: HTMLVideoElement) => {
-    reset();
-    videoRef.current = video;
-    webcamStartRef.current = Date.now();
-    setMode('webcam');
-    initPose();
-    animRef.current = requestAnimationFrame(processLoop);
-  }, [reset, initPose, processLoop]);
-
   const handleStop = useCallback(() => {
     stopLoop();
     void poseRef.current?.close();
@@ -324,6 +306,28 @@ export default function App() {
     setMode('idle');
     reset();
   }, [stopLoop, reset]);
+
+  const handleVideoReady = useCallback((video: HTMLVideoElement) => {
+    setCameraError(null);
+    reset();
+    videoRef.current = video;
+    setMode('video');
+    initPose();
+    video.onplay = () => { animRef.current = requestAnimationFrame(processLoop); };
+    video.onpause = stopLoop;
+    // Auto-save when video finishes playing naturally
+    video.onended = handleStop;
+  }, [reset, initPose, processLoop, stopLoop, handleStop]);
+
+  const handleWebcamReady = useCallback((video: HTMLVideoElement) => {
+    setCameraError(null);
+    reset();
+    videoRef.current = video;
+    webcamStartRef.current = Date.now();
+    setMode('webcam');
+    initPose();
+    animRef.current = requestAnimationFrame(processLoop);
+  }, [reset, initPose, processLoop]);
 
   // ── History helpers ─────────────────────────────────────────────────────────
   const handleDeleteSession = useCallback((id: string) => {
@@ -375,11 +379,18 @@ export default function App() {
 
           <div className={styles.analysisArea}>
             <div ref={videoContainerRef} className={styles.videoContainer}>
+              {cameraError && (
+                <div className={styles.errorBanner} role="alert">
+                  <span>{cameraError}</span>
+                  <button onClick={() => setCameraError(null)} aria-label="Dismiss error">✕</button>
+                </div>
+              )}
               <VideoCapture
                 mode={mode}
                 onVideoReady={handleVideoReady}
                 onWebcamReady={handleWebcamReady}
                 onStop={handleStop}
+                onError={(msg) => setCameraError(msg)}
               />
               <PoseOverlay ref={overlayRef} containerRef={videoContainerRef} />
             </div>
