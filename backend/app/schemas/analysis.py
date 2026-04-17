@@ -51,6 +51,7 @@ class AnalysisResult(BaseModel):
     violations: list[ViolationFlag]
     fatigue_flags: list[dict[str, Any]]
     processing_time_sec: float
+    stance: str | None = None          # deadlift only: "sumo" | "conventional" | "unknown"
 
 
 class JobStatusResponse(BaseModel):

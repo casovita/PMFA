@@ -286,6 +286,73 @@ def extract_angles(kps: KpsDict, side: str = "right") -> dict[str, float]:
     return angles
 
 
+# ─── Deadlift stance classifier ──────────────────────────────────────────────
+
+#: Possible return values of :func:`classify_deadlift_stance`.
+DeadliftStance = str   # "sumo" | "conventional" | "unknown"
+
+# Knowledge-base thresholds (movement_analysis_rules.json §biomechanical_targets)
+#   conventional : trunk_lean 30–45°, hip_flexion 80–95°
+#   sumo         : trunk_lean 15–30°, hip_flexion 70–85°
+_TRUNK_SPLIT_LOW  = 28.0   # below → sumo
+_TRUNK_SPLIT_HIGH = 33.0   # above → conventional  (28–33° = ambiguous zone)
+_HIP_SPLIT        = 82.5   # tiebreaker in ambiguous zone: below → sumo
+
+
+def classify_deadlift_stance(
+    setup_angles: list[dict[str, float]],
+    min_frames: int = 3,
+) -> DeadliftStance:
+    """Classify deadlift stance from setup-phase (pre-movement) angles.
+
+    Parameters
+    ----------
+    setup_angles:
+        Per-frame angle dicts captured while the lifter is stationary over the
+        bar — typically the first ``~1 s`` of the clip before any descent begins.
+        Expected keys: ``trunk_lean`` (°) and optionally ``hip_flexion`` (°).
+    min_frames:
+        Minimum number of frames containing ``trunk_lean`` required to return
+        a non-``"unknown"`` result.  Default 3.
+
+    Returns
+    -------
+    ``"sumo"``, ``"conventional"``, or ``"unknown"``.
+
+    Algorithm
+    ---------
+    *Trunk lean* is the primary discriminant — it is the most reliable signal
+    from a sagittal view (sumo lifters are markedly more upright at setup).
+    *Hip flexion* is a secondary tiebreaker in the 28–33° overlap zone.
+
+    Why sagittal view works here
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Foot separation can't be measured from the side, but the sumo setup
+    produces a distinctly more upright trunk (15–30° vs 30–45° conventional)
+    because the wide stance shifts the hip joint directly over the bar without
+    requiring deep forward lean.  This is observable even from a side camera.
+    """
+    trunk_vals = [a["trunk_lean"] for a in setup_angles if "trunk_lean" in a]
+    hip_vals   = [a["hip_flexion"] for a in setup_angles if "hip_flexion" in a]
+
+    if len(trunk_vals) < min_frames:
+        return "unknown"
+
+    trunk_mean = sum(trunk_vals) / len(trunk_vals)
+
+    # Primary split on trunk lean
+    if trunk_mean < _TRUNK_SPLIT_LOW:
+        return "sumo"
+    if trunk_mean > _TRUNK_SPLIT_HIGH:
+        return "conventional"
+
+    # Ambiguous zone: use hip_flexion mean as tiebreaker
+    if not hip_vals:
+        return "unknown"
+    hip_mean = sum(hip_vals) / len(hip_vals)
+    return "sumo" if hip_mean < _HIP_SPLIT else "conventional"
+
+
 # ─── Rep segmentation ─────────────────────────────────────────────────────────
 
 _IDLE = "idle"

@@ -28,6 +28,7 @@ from app.services.biomechanics import (
     AngleSmoother,
     CompletedRep,
     RepSegmenter,
+    classify_deadlift_stance,
     extract_angles,
     kps_to_dict,
     pick_side,
@@ -119,6 +120,9 @@ def run_analysis(
         completed_reps: list[CompletedRep] = []
         all_violations: list[ViolationFlag] = []
         locked_side: str | None = None
+        # Collect angles during the IDLE phase (before first rep) for stance detection
+        setup_angles: list[dict[str, float]] = []
+        _setup_done = False                  # stop collecting once rep starts
 
         for frame in frame_keypoints:
             if not frame.keypoints:
@@ -132,6 +136,11 @@ def run_analysis(
 
             raw_angles = extract_angles(kps, side=locked_side)
             angles     = smoother.smooth(frame.timestamp_sec, raw_angles)
+
+            # Accumulate setup angles while still in the pre-rep IDLE phase
+            if not _setup_done:
+                setup_angles.append(angles)
+
             violations = scorer.evaluate_frame(movement, angles)
             all_violations.extend(violations)
 
@@ -142,7 +151,14 @@ def run_analysis(
                 violations=violations,
             )
             if rep is not None:
+                _setup_done = True           # rep started — stop collecting setup
                 completed_reps.append(rep)
+
+        # ── Step 4b: stance classification (deadlift only) ───────────────────
+        stance: str | None = None
+        if movement == "deadlift":
+            stance = classify_deadlift_stance(setup_angles)
+            logger.info("Job %s: deadlift stance → %s", job_id, stance)
 
         # ── Step 5: score ────────────────────────────────────────────────────
         rep_metrics = [_rep_to_metrics(r, scorer) for r in completed_reps]
@@ -174,6 +190,7 @@ def run_analysis(
                 "violations": [v.model_dump() for v in set_violations],
                 "fatigue_flags": _detect_fatigue(rep_metrics),
                 "processing_time_sec": round(elapsed, 3),
+                "stance": stance,
             }
             job.status = "completed"
             job.result = result
