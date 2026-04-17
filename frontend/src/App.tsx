@@ -16,6 +16,10 @@ import { RepTimeline } from './components/RepTimeline';
 import { AngleChart } from './components/AngleChart';
 import { CameraGuide } from './components/CameraGuide';
 import { HistoryView } from './components/HistoryView';
+import { FeedbackPanel } from './components/FeedbackPanel';
+import { BackendAnalysisPanel } from './components/BackendAnalysisPanel';
+import { generateFeedback } from './lib/feedbackEngine';
+import type { CoachingCue } from './types';
 import {
   extractSquatAngles,
   extractDeadliftAngles,
@@ -41,6 +45,13 @@ import {
   setRadarMuted as radarSetMuted,
 } from './lib/audioRadar';
 import { saveSession, deleteSession, loadSessions } from './lib/historyStore';
+import {
+  submitAnalysis,
+  pollResult,
+  toBackendMovement,
+  type BackendAnalysisResult,
+  type JobStatusCode,
+} from './lib/api';
 import styles from './App.module.css';
 
 // MediaPipe Pose is loaded via <script> tag in index.html (CDN UMD build).
@@ -84,6 +95,15 @@ export default function App() {
 
   // Audio radar
   const [radarMuted, setRadarMuted] = useState(false);
+
+  // Post-set coaching feedback
+  const [feedbackCues, setFeedbackCues] = useState<CoachingCue[]>([]);
+
+  // Backend (server-side YOLOv8) analysis
+  const [backendStatus, setBackendStatus] = useState<JobStatusCode | 'uploading' | 'idle'>('idle');
+  const [backendResult, setBackendResult] = useState<BackendAnalysisResult | null>(null);
+  const [backendError, setBackendError] = useState<string | null>(null);
+  const backendPollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Mutable refs (not state — no render needed per frame)
   const poseRef           = useRef<PoseInstance | null>(null);
@@ -238,6 +258,7 @@ export default function App() {
   function handleCompletedRep(completedRep: RepData | null) {
     if (!completedRep) return;
     completedRep.score = scoreRep(completedRep);
+    completedRep.cues = generateFeedback([completedRep], liftRef.current);
     snapshotWorstRankRef.current = 0; // reset for next rep
     repScoresRef.current.push(completedRep.score);
     const fatigueAlerts = checkFatigue(repStateRef.current.repHistory);
@@ -286,9 +307,42 @@ export default function App() {
     lastTRef.current = -1;
   }, []);
 
+  const resetBackend = useCallback(() => {
+    if (backendPollRef.current) clearTimeout(backendPollRef.current);
+    backendPollRef.current = null;
+    setBackendStatus('idle');
+    setBackendResult(null);
+    setBackendError(null);
+  }, []);
+
+  const startPolling = useCallback((jobId: string) => {
+    const poll = () => {
+      pollResult(jobId)
+        .then((status) => {
+          if (status.status === 'completed') {
+            setBackendStatus('completed');
+            setBackendResult(status.result);
+          } else if (status.status === 'failed') {
+            setBackendStatus('failed');
+            setBackendError(status.error_message ?? 'Server analysis failed.');
+          } else {
+            setBackendStatus(status.status);
+            backendPollRef.current = setTimeout(poll, 2000);
+          }
+        })
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : 'Network error polling results.';
+          setBackendStatus('failed');
+          setBackendError(msg);
+        });
+    };
+    poll();
+  }, []);
+
   // ── Reset ───────────────────────────────────────────────────────────────────
   const reset = useCallback(() => {
     stopLoop();
+    resetBackend();
     repStateRef.current = createRepState();
     repScoresRef.current = [];
     snapshotWorstRankRef.current = 0;
@@ -303,9 +357,10 @@ export default function App() {
     setFatigueSev(null);
     setRepHistory([]);
     setFrameData([]);
+    setFeedbackCues([]);
     overlayRef.current?.clear();
     setRadarProximity(0, 880);
-  }, [stopLoop]);
+  }, [stopLoop, resetBackend]);
 
   // ── Video handlers ──────────────────────────────────────────────────────────
   const handleStop = useCallback(() => {
@@ -313,17 +368,18 @@ export default function App() {
     void poseRef.current?.close();
     poseRef.current = null;
 
-    // Save session before reset clears state
+    // Save session and generate feedback before reset clears state
     if (repHistoryRef.current.length > 0) {
       saveSession(liftRef.current, repHistoryRef.current);
       setSavedFeedback(true);
+      setFeedbackCues(generateFeedback(repHistoryRef.current, liftRef.current));
     }
 
     setMode('idle');
     reset();
   }, [stopLoop, reset]);
 
-  const handleVideoReady = useCallback((video: HTMLVideoElement) => {
+  const handleVideoReady = useCallback((video: HTMLVideoElement, file: File) => {
     setCameraError(null);
     reset();
     videoRef.current = video;
@@ -333,7 +389,22 @@ export default function App() {
     video.onpause = stopLoop;
     // Auto-save when video finishes playing naturally
     video.onended = handleStop;
-  }, [reset, initPose, processLoop, stopLoop, handleStop]);
+
+    // Submit to backend for server-side YOLOv8 analysis (runs in parallel)
+    setBackendStatus('uploading');
+    setBackendResult(null);
+    setBackendError(null);
+    submitAnalysis(file, toBackendMovement(liftRef.current))
+      .then((jobId) => {
+        setBackendStatus('pending');
+        startPolling(jobId);
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : 'Could not reach analysis server.';
+        setBackendStatus('failed');
+        setBackendError(msg);
+      });
+  }, [reset, initPose, processLoop, stopLoop, handleStop, startPolling]);
 
   const handleWebcamReady = useCallback((video: HTMLVideoElement) => {
     setCameraError(null);
@@ -443,6 +514,22 @@ export default function App() {
           )}
 
           <RepTimeline reps={repHistory} />
+
+          {mode === 'idle' && feedbackCues.length > 0 && (
+            <FeedbackPanel
+              cues={feedbackCues}
+              lift={lift}
+              repCount={repHistory.length}
+            />
+          )}
+
+          {mode === 'idle' && backendStatus !== 'idle' && (
+            <BackendAnalysisPanel
+              status={backendStatus}
+              result={backendResult}
+              error={backendError}
+            />
+          )}
         </>
       )}
 

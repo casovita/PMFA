@@ -2,7 +2,9 @@ import { useRef, useCallback, useState } from 'react';
 import styles from './VideoCapture.module.css';
 
 interface Props {
-  onVideoReady: (video: HTMLVideoElement) => void;
+  /** Called when a video file is loaded and ready to play. The File is passed
+   *  so the caller can submit it to the backend for server-side analysis. */
+  onVideoReady: (video: HTMLVideoElement, file: File) => void;
   onWebcamReady: (video: HTMLVideoElement) => void;
   onStop: () => void;
   onError?: (msg: string) => void;
@@ -39,7 +41,7 @@ export function VideoCapture({ onVideoReady, onWebcamReady, onStop, onError, mod
 
       video.onloadedmetadata = () => {
         setIsLoading(false);
-        onVideoReady(video);
+        onVideoReady(video, file);
       };
 
       // Reset input so the same file can be re-selected
