@@ -7,14 +7,14 @@ from fastapi.testclient import TestClient
 
 
 class TestSubmitAnalysis:
-    def test_returns_202_with_s3_key(self, client: TestClient) -> None:
-        response = client.post("/api/v1/analyze", params={"movement": "squat", "s3_key": "uploads/test.mp4"})
+    def test_returns_202_with_video_key(self, client: TestClient) -> None:
+        response = client.post("/api/v1/analyze", params={"movement": "squat", "video_key": "uploads/test.mp4"})
         assert response.status_code == 202
 
     def test_returns_job_id_and_pending_status(self, client: TestClient) -> None:
         data = client.post(
             "/api/v1/analyze",
-            params={"movement": "squat", "s3_key": "uploads/test.mp4"},
+            params={"movement": "squat", "video_key": "uploads/test.mp4"},
         ).json()
         assert "job_id" in data
         assert data["status"] == "pending"
@@ -36,7 +36,7 @@ class TestSubmitAnalysis:
     def test_422_for_unsupported_movement(self, client: TestClient) -> None:
         response = client.post(
             "/api/v1/analyze",
-            params={"movement": "clean", "s3_key": "uploads/test.mp4"},
+            params={"movement": "clean", "video_key": "uploads/test.mp4"},
         )
         assert response.status_code == 422
         assert "clean" in response.json()["detail"]
@@ -45,7 +45,7 @@ class TestSubmitAnalysis:
         import re
         data = client.post(
             "/api/v1/analyze",
-            params={"movement": "bench_press", "s3_key": "uploads/test.mp4"},
+            params={"movement": "bench_press", "video_key": "uploads/test.mp4"},
         ).json()
         uuid_pattern = r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
         assert re.match(uuid_pattern, data["job_id"], re.IGNORECASE)
@@ -59,7 +59,7 @@ class TestGetResults:
     def test_can_retrieve_submitted_job(self, client: TestClient) -> None:
         job_id = client.post(
             "/api/v1/analyze",
-            params={"movement": "squat", "s3_key": "uploads/test.mp4"},
+            params={"movement": "squat", "video_key": "uploads/test.mp4"},
         ).json()["job_id"]
 
         response = client.get(f"/api/v1/results/{job_id}")
@@ -72,7 +72,7 @@ class TestGetResults:
         """The stub analyzer runs synchronously in TestClient; job should complete."""
         job_id = client.post(
             "/api/v1/analyze",
-            params={"movement": "squat", "s3_key": "uploads/test.mp4"},
+            params={"movement": "squat", "video_key": "uploads/test.mp4"},
         ).json()["job_id"]
 
         # Poll up to 3 seconds — stub completes near-instantly

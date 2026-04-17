@@ -3,6 +3,12 @@ import type { LiftType, RepData } from '../types';
 import { qualityLabel } from '../lib/formatters';
 import styles from './SessionDetail.module.css';
 
+const SEVERITY_SHORT: Record<string, string> = {
+  critical:  'C',
+  high_risk: 'H',
+  warning:   'W',
+};
+
 const PRIMARY_LABEL: Record<LiftType, string> = {
   squat: 'Knee',
   deadlift: 'Hip',
@@ -50,6 +56,10 @@ export function SessionDetail({ reps, lift }: Props) {
               <span className={styles.colLabel}>Score</span>
               <span className={styles.colSub}>rep quality 0–100</span>
             </th>
+            <th className={styles.th}>
+              <span className={styles.colLabel}>Coaching</span>
+              <span className={styles.colSub}>cues for this rep</span>
+            </th>
             {hasSnapshots && (
               <th className={styles.th}>
                 <span className={styles.colLabel}>Snapshot</span>
@@ -79,6 +89,20 @@ export function SessionDetail({ reps, lift }: Props) {
                   <span className={styles.scoreBadge} data-quality={q}>
                     {score}
                   </span>
+                </td>
+                <td className={styles.cuesCell}>
+                  {rep.cues && rep.cues.length > 0 ? (
+                    <ul className={styles.cueList}>
+                      {rep.cues.map((c) => (
+                        <li key={c.violationType} className={styles.cueItem} data-severity={c.severity}>
+                          <span className={styles.cueSev}>{SEVERITY_SHORT[c.severity] ?? c.severity[0].toUpperCase()}</span>
+                          {c.cue}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <span className={styles.noSnap}>—</span>
+                  )}
                 </td>
                 {hasSnapshots && (
                   <td className={styles.snapshotCell}>

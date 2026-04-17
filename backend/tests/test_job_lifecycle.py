@@ -21,7 +21,7 @@ class TestSubmission:
         for movement in VALID_MOVEMENTS:
             resp = client.post(
                 "/api/v1/analyze",
-                params={"movement": movement, "s3_key": "uploads/test.mp4"},
+                params={"movement": movement, "video_key": "uploads/test.mp4"},
             )
             assert resp.status_code == 202, f"Expected 202 for movement={movement}"
 
@@ -29,7 +29,7 @@ class TestSubmission:
         ids = [
             client.post(
                 "/api/v1/analyze",
-                params={"movement": "squat", "s3_key": "uploads/test.mp4"},
+                params={"movement": "squat", "video_key": "uploads/test.mp4"},
             ).json()["job_id"]
             for _ in range(5)
         ]
@@ -38,14 +38,14 @@ class TestSubmission:
     def test_job_id_is_uuid4(self, client: TestClient) -> None:
         job_id = client.post(
             "/api/v1/analyze",
-            params={"movement": "squat", "s3_key": "uploads/test.mp4"},
+            params={"movement": "squat", "video_key": "uploads/test.mp4"},
         ).json()["job_id"]
         assert UUID_RE.match(job_id)
 
     def test_initial_status_is_pending(self, client: TestClient) -> None:
         data = client.post(
             "/api/v1/analyze",
-            params={"movement": "squat", "s3_key": "uploads/test.mp4"},
+            params={"movement": "squat", "video_key": "uploads/test.mp4"},
         ).json()
         assert data["status"] == "pending"
         assert data["result"] is None
@@ -54,7 +54,7 @@ class TestSubmission:
     def test_rejects_unknown_movement_with_422(self, client: TestClient) -> None:
         resp = client.post(
             "/api/v1/analyze",
-            params={"movement": "bicep_curl", "s3_key": "uploads/test.mp4"},
+            params={"movement": "bicep_curl", "video_key": "uploads/test.mp4"},
         )
         assert resp.status_code == 422
         assert "bicep_curl" in resp.json()["detail"]
@@ -79,7 +79,7 @@ class TestPolling:
     def _submit(self, client: TestClient, movement: str = "squat") -> str:
         return client.post(
             "/api/v1/analyze",
-            params={"movement": movement, "s3_key": "uploads/test.mp4"},
+            params={"movement": movement, "video_key": "uploads/test.mp4"},
         ).json()["job_id"]
 
     def test_get_results_returns_200_for_known_job(self, client: TestClient) -> None:

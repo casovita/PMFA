@@ -1,38 +1,34 @@
-"""S3 presigned URL helper (boto3)."""
+"""Local disk upload storage.
+
+Files are saved to settings.upload_dir (default /tmp/pmfa_uploads).
+The inference service reads them directly by path — no download step needed.
+
+NOTE: swap to Cloudflare R2 before any cloud/production deployment.
+R2 migration = change boto3 client to use endpoint_url; everything else stays identical.
+"""
 
 import uuid
+from pathlib import Path
 
-import boto3
-from botocore.exceptions import ClientError
+import aiofiles
+from fastapi import UploadFile
 
 from app.config import get_settings
 
 
-def generate_presigned_upload_url(
-    filename: str,
-    content_type: str = "video/mp4",
-) -> tuple[str, str]:
-    """Return (s3_key, presigned_put_url) for direct browser → S3 upload."""
+async def save_upload(file: UploadFile) -> str:
+    """Save an uploaded video to local disk. Returns a video_key (relative path)."""
     settings = get_settings()
-    s3_key = f"uploads/{uuid.uuid4()}/{filename}"
+    ext = Path(file.filename or "upload").suffix or ".mp4"
+    key = f"{uuid.uuid4()}{ext}"
+    dest = settings.upload_dir / key
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    async with aiofiles.open(dest, "wb") as f:
+        await f.write(await file.read())
+    return key
 
-    client = boto3.client(
-        "s3",
-        region_name=settings.aws_s3_region,
-        aws_access_key_id=settings.aws_access_key_id or None,
-        aws_secret_access_key=settings.aws_secret_access_key or None,
-    )
-    try:
-        url: str = client.generate_presigned_url(
-            "put_object",
-            Params={
-                "Bucket": settings.aws_s3_bucket,
-                "Key": s3_key,
-                "ContentType": content_type,
-            },
-            ExpiresIn=settings.aws_s3_presign_expiry_seconds,
-        )
-    except ClientError as exc:
-        raise RuntimeError(f"Failed to generate presigned URL: {exc}") from exc
 
-    return s3_key, url
+def get_upload_path(video_key: str) -> Path:
+    """Resolve a video_key to an absolute filesystem path."""
+    settings = get_settings()
+    return settings.upload_dir / video_key

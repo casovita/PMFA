@@ -44,9 +44,6 @@ export function TrendChart({ sessions, filterLift }: Props) {
     (l) => sessionsForLift(sessions, l).length >= MIN_SESSIONS_FOR_SERIES,
   );
 
-  // Don't render at all if no lift has enough data
-  if (qualifyingLifts.length === 0) return null;
-
   // Build datasets
   const datasets = qualifyingLifts.map((lift) => {
     const liftSessions = sessionsForLift(sessions, lift);
@@ -63,8 +60,8 @@ export function TrendChart({ sessions, filterLift }: Props) {
     };
   });
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
+    if (qualifyingLifts.length === 0) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -116,6 +113,8 @@ export function TrendChart({ sessions, filterLift }: Props) {
   // Rebuild chart when sessions or filter changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessions.length, filterLift]);
+
+  if (qualifyingLifts.length === 0) return null;
 
   return (
     <div className={styles.root}>

@@ -69,6 +69,16 @@
 - `src/components/ScoreSparkline.tsx` — pure SVG polyline sparkline (no Chart.js); handles 0/1/N scores; color-coded by last rep quality
 - `src/components/TrendChart.tsx` — Chart.js line chart: avg score per session per lift (≥3 sessions required to render)
 - `src/App.tsx` — `view: 'analyze' | 'history'` toggle; `repHistoryRef` (stale-closure-safe history snapshot); `savedFeedback` toast (auto-dismiss 2.5 s); `historyVersion` counter forces re-read of localStorage after delete
+- `backend/app/services/storage.py` — switched from S3 presigned URLs to local disk upload (`/tmp/pmfa_uploads`); `save_upload`, `get_upload_path`
+- `backend/app/config.py` — added `upload_dir` (local disk) and `ffmpeg_path` (optional override) settings
+- `backend/app/routers/storage.py` — `POST /upload` now accepts multipart file, returns `video_key`
+- `backend/app/routers/analysis.py` — `POST /analyze` accepts `video_key` (replaces `s3_key`); calls `save_upload` on inline video uploads
+- `backend/app/services/transcoder.py` — FFmpeg wrapper: `transcode()` (720p / 30 FPS / H.264 / AAC), `probe_duration()` via ffprobe; `TranscodeError` on non-zero exit
+- `backend/app/services/analyzer.py` — `run_analysis_stub` now runs transcode step before writing stub result; handles `TranscodeError` → job status `"failed"`
+- `backend/tests/` — 88 passing tests: updated `test_analysis.py` + `test_job_lifecycle.py` for `video_key` API; rewrote `test_storage.py` for multipart upload; added `test_transcoder.py` (13 tests)
+- `src/lib/feedbackEngine.ts` — rule-based coaching cue generator: aggregates violations across set, priority-ranks by clinical injury risk (lumbar > valgus > depth > ankle > bar drift > elbow), returns ≤3 cues with severity-keyed templates for all 11 violation types
+- `src/components/FeedbackPanel.tsx` + `FeedbackPanel.module.css` — post-set coaching panel: ranked cue list with severity badge, rep count, actionable cue text; shows after stop when reps exist
+- `src/App.tsx` — wires `generateFeedback` on `handleStop`; clears cues on `reset`; renders `FeedbackPanel` in idle mode
 
 ---
 

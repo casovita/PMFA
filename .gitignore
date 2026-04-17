@@ -46,3 +46,16 @@ htmlcov/
 
 # uv
 .python-version
+
+# Screenshots
+*.png
+*.jpg
+*.jpeg
+
+# Temp / uploads
+/tmp/
+tmp/
+*.tmp
+*.temp
+/backend/tmp/
+/tmp/pmfa_uploads/

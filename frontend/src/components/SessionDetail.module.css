@@ -83,6 +83,50 @@
 .scoreBadge[data-quality='fair']      { background: #422006; color: #fde68a; }
 .scoreBadge[data-quality='poor']      { background: #450a0a; color: #fca5a5; }
 
+/* ── Coaching cues column ── */
+
+.cuesCell {
+  padding: 0.4rem 0.75rem;
+  vertical-align: top;
+  min-width: 180px;
+  max-width: 280px;
+}
+
+.cueList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.cueItem {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  font-size: 0.71rem;
+  color: #6b7280;
+  line-height: 1.35;
+}
+
+.cueItem[data-severity='critical']  { color: #fca5a5; }
+.cueItem[data-severity='high_risk'] { color: #fed7aa; }
+.cueItem[data-severity='warning']   { color: #fde68a; }
+
+.cueSev {
+  flex-shrink: 0;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 0.05rem 0.25rem;
+  border-radius: 3px;
+  background: #1f2937;
+  color: #6b7280;
+  letter-spacing: 0.04em;
+}
+
+.cueItem[data-severity='critical']  .cueSev { background: #450a0a; color: #f87171; }
+.cueItem[data-severity='high_risk'] .cueSev { background: #431407; color: #fb923c; }
+.cueItem[data-severity='warning']   .cueSev { background: #422006; color: #facc15; }
+
 /* ── Snapshot column ── */
 
 .snapshotCell {

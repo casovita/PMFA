@@ -161,19 +161,15 @@ function TooltipCell({ label, value, children }: TooltipCellProps) {
   }, [open]);
 
   return (
-    <div
-      ref={ref}
-      className={styles.cell}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-    >
+    <div ref={ref} className={styles.cell}>
       <span className={styles.cellLabel}>{label}</span>
       <div className={styles.cellValueRow}>
         <span className={styles.cellValue}>{value}</span>
         <button
           className={styles.infoBtn}
-          onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+          onClick={() => setOpen((v) => !v)}
           aria-label={`Illustration for ${label}`}
+          aria-expanded={open}
         >
           ⓘ
         </button>

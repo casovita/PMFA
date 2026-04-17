@@ -62,6 +62,16 @@ export interface RepData {
   score: number | null;
   /** Data URL of a frame captured during a high_risk/critical violation, if any. */
   snapshotUrl?: string;
+  /** Rule-based coaching cues generated from this rep's violations. */
+  cues?: CoachingCue[];
+}
+
+export interface CoachingCue {
+  violationType: string;
+  severity: Severity;
+  repCount: number;
+  cue: string;
+  label: string;
 }
 
 export interface RepState {

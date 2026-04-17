@@ -6,6 +6,7 @@
   display: flex;
   gap: 1rem;
   margin-bottom: 1rem;
+  max-width: 520px;
 }
 
 .sourceBtn {
@@ -13,7 +14,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2.5rem 1rem;
+  padding: 2rem 1rem;
   border: 2px dashed #444;
   border-radius: 8px;
   cursor: pointer;
@@ -22,6 +23,17 @@
   background: none;
   font-family: inherit;
   transition: border-color 0.2s, color 0.2s;
+}
+
+@media (max-width: 480px) {
+  .picker {
+    flex-direction: column;
+    max-width: 100%;
+  }
+
+  .sourceBtn {
+    padding: 1.25rem 1rem;
+  }
 }
 
 .sourceBtn:hover {

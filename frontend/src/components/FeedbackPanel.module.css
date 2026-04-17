@@ -1,0 +1,129 @@
+.panel {
+  margin-top: 1.5rem;
+  background: #1a1a2e;
+  border: 1px solid #2d2d4e;
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #e0e0f0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.setMeta {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: #888;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.item {
+  background: #12122a;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  border-left: 3px solid transparent;
+}
+
+.item[data-severity='critical'] {
+  border-left-color: #ef4444;
+  background: #1c0d0d;
+}
+
+.item[data-severity='high_risk'] {
+  border-left-color: #f97316;
+  background: #1c1208;
+}
+
+.item[data-severity='warning'] {
+  border-left-color: #eab308;
+  background: #18180a;
+}
+
+.itemHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+
+.rank {
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  background: #2d2d4e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #aaa;
+  flex-shrink: 0;
+}
+
+.label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #d0d0e8;
+}
+
+.badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.badge[data-severity='critical'] {
+  background: #7f1d1d;
+  color: #fca5a5;
+}
+
+.badge[data-severity='high_risk'] {
+  background: #7c2d12;
+  color: #fdba74;
+}
+
+.badge[data-severity='warning'] {
+  background: #713f12;
+  color: #fde68a;
+}
+
+.freq {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: #666;
+}
+
+.cueText {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #b0b0cc;
+}
+
+.footer {
+  margin: 0.9rem 0 0;
+  font-size: 0.72rem;
+  color: #555;
+  text-align: center;
+}

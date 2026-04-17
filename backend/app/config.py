@@ -23,7 +23,14 @@ class Settings(BaseSettings):
     # Rules engine
     rules_json_path: Path = Path("../KNOWLEDGE/movement_analysis_rules.json")
 
-    # AWS S3
+    # Local disk upload storage
+    # NOTE: swap to Cloudflare R2 (2-line boto3 change) before any cloud deployment
+    upload_dir: Path = Path("/tmp/pmfa_uploads")
+
+    # FFmpeg — leave empty to auto-detect from PATH
+    ffmpeg_path: str = ""
+
+    # AWS S3 — unused during local-disk phase; kept for future R2/S3 migration
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
     aws_s3_bucket: str = ""
