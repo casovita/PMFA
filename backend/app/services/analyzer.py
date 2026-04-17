@@ -3,9 +3,9 @@
 Pipeline:
   1. Transcode upload → 720p / 30 FPS / H.264 via FFmpeg
   2. YOLOv8n-pose inference  (returns [] gracefully when file missing / no GPU)
-  3. Per-frame angle extraction + RulesEngine threshold evaluation
+  3. Per-frame angle extraction + FusionScorer threshold evaluation
   4. RepSegmenter accumulates violations and fires CompletedRep events
-  5. Deduction-based scoring via RulesEngine.score_rep()
+  5. FusionScorer.score_rep() — rules (60%) + XGBoost ML (40%) blend
   6. Persist AnalysisResult to job record
 
 When inference returns no frames (test environment, missing file, or YOLO not
@@ -32,7 +32,7 @@ from app.services.biomechanics import (
     pick_side,
 )
 from app.services.inference import run_inference
-from app.services.rules_engine import RulesEngine
+from app.services.scorer import FusionScorer, ScoredRep
 from app.services.storage import get_upload_path
 from app.services.transcoder import TranscodeError, transcode
 
@@ -50,24 +50,27 @@ def _quality_label(score: float) -> str:
     return next(lbl for threshold, lbl in _QUALITY_LABELS if score >= threshold)
 
 
-def _rep_to_metrics(rep: CompletedRep, rules_engine: RulesEngine) -> RepMetrics:
+def _rep_to_metrics(rep: CompletedRep, scorer: FusionScorer) -> RepMetrics:
     """Convert a CompletedRep (biomechanics domain) to the API RepMetrics schema."""
-    score, label = rules_engine.score_rep(rep.violations)
+    scored: ScoredRep = scorer.score_rep(rep)
     return RepMetrics(
         rep_number=rep.rep_number,
         primary_angle_min=rep.primary_angle_peak,   # max flexion = "min" raw angle
         max_trunk_lean=rep.max_trunk_lean,
         time_under_tension_sec=rep.time_under_tension_sec,
         violations=rep.violations,
-        score=score,
-        quality_label=label,
+        score=scored.score,
+        quality_label=scored.quality_label,
+        rules_score=scored.rules_score,
+        ml_score=scored.ml_score,
+        shap_top=scored.shap_top,
     )
 
 
 def run_analysis(
     job_id: uuid.UUID,
     engine: Engine,
-    rules_engine: RulesEngine,
+    scorer: FusionScorer,
 ) -> None:
     """BackgroundTask: run the full analysis pipeline and persist the result.
 
@@ -126,7 +129,7 @@ def run_analysis(
                 locked_side = pick_side(kps)
 
             angles = extract_angles(kps, side=locked_side)
-            violations = rules_engine.evaluate_frame(movement, angles)
+            violations = scorer.evaluate_frame(movement, angles)
             all_violations.extend(violations)
 
             rep = segmenter.push(
@@ -139,7 +142,7 @@ def run_analysis(
                 completed_reps.append(rep)
 
         # ── Step 5: score ────────────────────────────────────────────────────
-        rep_metrics = [_rep_to_metrics(r, rules_engine) for r in completed_reps]
+        rep_metrics = [_rep_to_metrics(r, scorer) for r in completed_reps]
 
         overall_score = (
             round(sum(m.score for m in rep_metrics) / len(rep_metrics), 1)

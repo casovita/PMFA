@@ -35,6 +35,9 @@ class RepMetrics(BaseModel):
     violations: list[ViolationFlag]
     score: float = Field(ge=0.0, le=100.0)
     quality_label: str              # excellent | good | fair | poor
+    rules_score: float = Field(ge=0.0, le=100.0, default=0.0)
+    ml_score: float | None = None
+    shap_top: list[dict[str, Any]] = []
 
 
 class AnalysisResult(BaseModel):

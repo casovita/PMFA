@@ -12,6 +12,11 @@ dependencies = [
     "boto3>=1.34.0",
     "aiofiles>=23.2.1",
     "ultralytics>=8.4.38",
+    "xgboost>=3.2.0",
+    "shap>=0.51.0",
+    "numpy>=2.4.4",
+    "pandas>=3.0.2",
+    "scikit-learn>=1.8.0",
 ]
 
 [project.optional-dependencies]
@@ -46,7 +51,7 @@ plugins = ["pydantic.mypy"]
 [[tool.mypy.overrides]]
 # These packages ship no PEP 561 stubs; skip entirely so imported names are
 # treated as Any and no attr-defined errors bleed into calling code.
-module = ["cv2", "cv2.*", "ultralytics", "ultralytics.*", "aiofiles", "aiofiles.*"]
+module = ["cv2", "cv2.*", "ultralytics", "ultralytics.*", "aiofiles", "aiofiles.*", "xgboost", "xgboost.*", "shap", "shap.*"]
 ignore_missing_imports = true
 follow_imports = "skip"
 

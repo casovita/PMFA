@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     # NOTE: swap to Cloudflare R2 (2-line boto3 change) before any cloud deployment
     upload_dir: Path = Path("/tmp/pmfa_uploads")
 
+    # ML model directory — contains xgb_squat.json, xgb_deadlift.json, etc.
+    # Training script: backend/scripts/train_model.py
+    model_dir: Path = Path("models")
+
     # FFmpeg — leave empty to auto-detect from PATH
     ffmpeg_path: str = ""
 

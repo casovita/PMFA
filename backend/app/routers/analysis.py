@@ -9,7 +9,7 @@ from app.database import get_engine, get_session
 from app.models.job import AnalysisJob
 from app.schemas.analysis import JobStatusResponse
 from app.services.analyzer import run_analysis
-from app.services.rules_engine import RulesEngine
+from app.services.scorer import FusionScorer  # noqa: F401 — used in type annotation below
 from app.services.storage import save_upload
 
 router = APIRouter()
@@ -58,10 +58,10 @@ async def submit_analysis(
     session.commit()
     session.refresh(job)
 
-    rules_engine: RulesEngine = request.app.state.rules_engine
+    scorer: FusionScorer = request.app.state.scorer
 
-    # Pass engine + rules_engine (not session) — background task opens its own session
-    background_tasks.add_task(run_analysis, job_id=job.id, engine=engine, rules_engine=rules_engine)
+    # Pass engine + scorer (not session) — background task opens its own session
+    background_tasks.add_task(run_analysis, job_id=job.id, engine=engine, scorer=scorer)
 
     return JobStatusResponse(job_id=job.id, status="pending")
 

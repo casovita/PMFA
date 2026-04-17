@@ -160,6 +160,16 @@ def sev_rank(sev: str) -> int:
     return _SEV_RANK.get(sev, 0)
 
 
+def _mean(vals: list[float]) -> float:
+    return sum(vals) / len(vals) if vals else 0.0
+
+
+def _sd(vals: list[float], mean: float) -> float:
+    if len(vals) < 2:
+        return 0.0
+    return math.sqrt(sum((v - mean) ** 2 for v in vals) / len(vals))
+
+
 @dataclass
 class _ActiveRep:
     start_frame: int
@@ -174,9 +184,14 @@ class CompletedRep:
     start_frame: int
     end_frame: int
     time_under_tension_sec: float
-    primary_angle_peak: float   # max flexion (rule convention) reached this rep
+    movement: str                 # squat | deadlift | bench_press
+    primary_angle_peak: float     # max flexion (rule convention) reached this rep
+    primary_angle_mean: float     # mean flexion — depth consistency
+    primary_angle_sd: float       # SD of flexion — rep-to-rep variability
     max_trunk_lean: float
-    violations: list[Any]       # list[ViolationFlag] from rules engine
+    trunk_lean_mean: float        # average forward lean
+    trunk_lean_sd: float          # lean drift — fatigue proxy
+    violations: list[Any]         # list[ViolationFlag] from rules engine
 
 
 class RepSegmenter:
@@ -203,6 +218,7 @@ class RepSegmenter:
 
     def __init__(self, movement: str) -> None:
         cfg = self._CFG.get(movement, self._CFG["squat"])
+        self._movement = movement
         self._key: str = cfg["key"]
         self._top: float = cfg["top"]
         self._bottom: float = cfg["bottom"]
@@ -258,10 +274,17 @@ class RepSegmenter:
         a = self._active or _ActiveRep(start_frame=end_frame, start_time=end_time)
         tut = round(end_time - a.start_time, 2)
 
-        peak = max((f.get(self._key, 0.0) for f in a.angles_log), default=0.0)
-        max_trunk = max((f.get("trunk_lean", 0.0) for f in a.angles_log), default=0.0)
+        primary_vals = [f.get(self._key, 0.0) for f in a.angles_log]
+        trunk_vals   = [f.get("trunk_lean", 0.0) for f in a.angles_log]
 
-        # Deduplicate: worst severity per rule_id
+        peak      = max(primary_vals, default=0.0)
+        p_mean    = _mean(primary_vals)
+        p_sd      = _sd(primary_vals, p_mean)
+        t_max     = max(trunk_vals, default=0.0)
+        t_mean    = _mean(trunk_vals)
+        t_sd      = _sd(trunk_vals, t_mean)
+
+        # Deduplicate violations: worst severity per rule_id
         best: dict[str, Any] = {}
         for v in a.violations_log:
             rid = v.rule_id
@@ -273,7 +296,12 @@ class RepSegmenter:
             start_frame=a.start_frame,
             end_frame=end_frame,
             time_under_tension_sec=tut,
+            movement=self._movement,
             primary_angle_peak=round(peak, 1),
-            max_trunk_lean=round(max_trunk, 1),
+            primary_angle_mean=round(p_mean, 1),
+            primary_angle_sd=round(p_sd, 1),
+            max_trunk_lean=round(t_max, 1),
+            trunk_lean_mean=round(t_mean, 1),
+            trunk_lean_sd=round(t_sd, 1),
             violations=list(best.values()),
         )
