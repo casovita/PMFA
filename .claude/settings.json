@@ -7,7 +7,16 @@
       "Bash(npm create:*)",
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
-      "Bash(git remote *)"
+      "Bash(git remote *)",
+      "Bash(uv sync *)",
+      "Bash(uv run *)",
+      "Bash(python3 -c \"import json; d=json.load\\(open\\('../KNOWLEDGE/movement_analysis_rules.json'\\)\\); print\\(list\\(d.get\\('execution_standards',{}\\).get\\('powerlifting_ipf',{}\\).keys\\(\\)\\)[:5]\\)\")",
+      "Bash(python3 -c \"import json; d=json.load\\(open\\('../KNOWLEDGE/movement_analysis_rules.json'\\)\\); ipf=d['execution_standards']['powerlifting_ipf']; print\\(list\\(ipf.keys\\(\\)\\)\\)\")",
+      "Bash(python3 -c \"import json; d=json.load\\(open\\('../KNOWLEDGE/movement_analysis_rules.json'\\)\\); ipf=d['execution_standards']['powerlifting_ipf']['movements']; print\\(list\\(ipf.keys\\(\\)\\)\\)\")",
+      "Bash(curl -s http://localhost:8000/api/v1/rules)",
+      "Bash(python3 -m json.tool)",
+      "Bash(npx playwright *)",
+      "Bash(python3 -c ' *)"
     ]
   }
 }

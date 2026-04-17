@@ -68,14 +68,20 @@ function extractThresholds(json: any): Thresholds {
   };
 }
 
-export async function loadRules(): Promise<boolean> {
-  try {
-    const res = await fetch('/KNOWLEDGE/movement_analysis_rules.json');
-    if (!res.ok) return false;
-    const json: unknown = await res.json();
-    THRESHOLDS = extractThresholds(json);
-    return true;
-  } catch {
-    return false;
-  }
+let _loadPromise: Promise<boolean> | null = null;
+
+export function loadRules(): Promise<boolean> {
+  if (_loadPromise) return _loadPromise;
+  _loadPromise = (async () => {
+    try {
+      const res = await fetch('/KNOWLEDGE/movement_analysis_rules.json');
+      if (!res.ok) return false;
+      const json: unknown = await res.json();
+      THRESHOLDS = extractThresholds(json);
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+  return _loadPromise;
 }
