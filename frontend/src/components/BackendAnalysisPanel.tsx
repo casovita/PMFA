@@ -1,4 +1,4 @@
-import type { BackendAnalysisResult, BackendViolation, JobStatusCode } from '../lib/api';
+import type { BackendAnalysisResult, BackendCoachingCue, BackendViolation, JobStatusCode } from '../lib/api';
 import styles from './BackendAnalysisPanel.module.css';
 
 interface Props {
@@ -20,6 +20,20 @@ const METRIC_LABEL: Record<string, string> = {
   knee_flexion: 'Knee Flexion',
   elbow_flexion: 'Elbow Flexion',
 };
+
+function CoachingCueCard({ cue }: { cue: BackendCoachingCue }) {
+  return (
+    <li className={styles.cueItem} data-severity={cue.severity}>
+      <p className={styles.cueText}>{cue.cue}</p>
+      {cue.drill && <p className={styles.cueDrill}>Drill: {cue.drill}</p>}
+      {cue.rep_numbers.length > 0 && (
+        <span className={styles.cueReps}>
+          Rep{cue.rep_numbers.length > 1 ? 's' : ''} {cue.rep_numbers.join(', ')}
+        </span>
+      )}
+    </li>
+  );
+}
 
 function ViolationRow({ v }: { v: BackendViolation }) {
   return (
@@ -120,6 +134,19 @@ export function BackendAnalysisPanel({ status, result, error }: Props) {
           <ul className={styles.violationList}>
             {topViolations.map((v) => (
               <ViolationRow key={v.rule_id} v={v} />
+            ))}
+          </ul>
+        </>
+      )}
+
+      {/* LLM coaching cues */}
+      {result.feedback && result.feedback.cues.length > 0 && (
+        <>
+          <p className={styles.sectionLabel}>AI Coaching Cues</p>
+          <p className={styles.feedbackSummary}>{result.feedback.summary}</p>
+          <ul className={styles.cueList}>
+            {result.feedback.cues.map((cue) => (
+              <CoachingCueCard key={cue.rule_id} cue={cue} />
             ))}
           </ul>
         </>

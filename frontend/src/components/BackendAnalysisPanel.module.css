@@ -234,6 +234,54 @@
 .vBadge[data-severity='high_risk'] { background: #7c2d12; color: #fdba74; }
 .vBadge[data-severity='warning']   { background: #713f12; color: #fde68a; }
 
+/* ── Coaching cues ── */
+.feedbackSummary {
+  margin: 0 0 0.6rem;
+  font-size: 0.82rem;
+  color: #93c5fd;
+  font-style: italic;
+}
+
+.cueList {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cueItem {
+  background: #0d1b2e;
+  border-left: 3px solid transparent;
+  border-radius: 6px;
+  padding: 0.6rem 0.85rem;
+}
+
+.cueItem[data-severity='critical']  { border-left-color: #ef4444; }
+.cueItem[data-severity='high_risk'] { border-left-color: #f97316; }
+.cueItem[data-severity='warning']   { border-left-color: #eab308; }
+
+.cueText {
+  margin: 0 0 0.25rem;
+  font-size: 0.84rem;
+  color: #c8d8f0;
+  line-height: 1.45;
+}
+
+.cueDrill {
+  margin: 0 0 0.2rem;
+  font-size: 0.76rem;
+  color: #60a5fa;
+}
+
+.cueReps {
+  font-size: 0.68rem;
+  color: #4a6080;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 /* ── Misc ── */
 .fatigueNote {
   margin: 0.5rem 0 0;

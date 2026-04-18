@@ -37,6 +37,20 @@ export interface BackendFatigueFlag {
   severity: 'warning' | 'high_risk';
 }
 
+export interface BackendCoachingCue {
+  rule_id: string;
+  severity: 'warning' | 'high_risk' | 'critical';
+  cue: string;
+  drill: string | null;
+  rep_numbers: number[];
+}
+
+export interface BackendFeedback {
+  cues: BackendCoachingCue[];
+  summary: string;
+  model: string;
+}
+
 export interface BackendAnalysisResult {
   job_id: string;
   movement: string;
@@ -47,6 +61,8 @@ export interface BackendAnalysisResult {
   violations: BackendViolation[];
   fatigue_flags: BackendFatigueFlag[];
   processing_time_sec: number;
+  stance: string | null;
+  feedback: BackendFeedback | null;
 }
 
 export type JobStatusCode = 'pending' | 'processing' | 'completed' | 'failed';
