@@ -80,10 +80,45 @@
 - `src/components/FeedbackPanel.tsx` + `FeedbackPanel.module.css` — post-set coaching panel: ranked cue list with severity badge, rep count, actionable cue text; shows after stop when reps exist
 - `src/App.tsx` — wires `generateFeedback` on `handleStop`; clears cues on `reset`; renders `FeedbackPanel` in idle mode
 
+### Completed (continued — backend ML + Phase 3 bootstrap, 2026-04-17/18)
+- `backend/app/services/inference.py` — YOLOv8n-pose wrapper; full inference pipeline wired end-to-end
+- `backend/app/services/biomechanics.py` — `AngleSmoother` (One Euro Filter), `RepSegmenter`, `classify_deadlift_stance` (sumo/conventional from hip-width ratio)
+- `backend/app/services/feature_engineering.py` — 15-feature vector (`FEATURE_NAMES`), `features_to_row`
+- `backend/app/services/ml_scorer.py` — `MLScorer`: XGBoost regressor + SHAP `TreeExplainer`; lazy-load from JSON; `shap_top(n=3)`
+- `backend/app/services/scorer.py` — `FusionScorer`: 60% rule-based + 40% XGBoost; `ScoredRep` with `shap_top`
+- `backend/app/services/analyzer.py` — full pipeline: transcode → YOLOv8 → smoothing → rep segmentation → fusion scoring → fatigue detection → LLM feedback → persist
+- `backend/scripts/train_model.py` — synthetic data generator + XGBRegressor trainer (300 trees, depth=4, lr=0.05)
+- `backend/models/xgb_scorer.json` — trained model artifact (575 KB)
+- **LLM coaching cues (Phase 3):**
+  - `backend/app/schemas/feedback.py` — `CoachingCue`, `FeedbackResult` schemas
+  - `backend/app/services/llm_feedback.py` — `generate_feedback()` via `claude-sonnet-4-6`; system prompt cached (`cache_control: ephemeral`); graceful `None` on missing key or API error
+  - `backend/app/routers/analysis.py` — `GET /api/v1/feedback/{job_id}` shortcut
+  - `backend/tests/test_llm_feedback.py` — 11 tests (parse, happy path, error, degradation, cache headers)
+- **Frontend ↔ backend (confirmed wired):**
+  - `frontend/src/lib/api.ts` — `submitAnalysis`, `pollResult`; `BackendCoachingCue`, `BackendFeedback`, full `BackendAnalysisResult` types
+  - `frontend/src/components/BackendAnalysisPanel.tsx` — score/quality/reps, per-rep grid, violations, **AI coaching cues**, fatigue flags
+  - `App.tsx` — video upload triggers parallel browser (BlazePose) + server (YOLOv8) analysis; polls until complete
+- **Test count: 137 passing**
+
 ---
 
 ## Phase 3 — Beta (Weeks 17–28)
-**Status:** Not Started
+**Status:** In Progress (bootstrap complete)
+
+### Completed
+- XGBoost fusion scorer trained + integrated (synthetic data; real annotation needed)
+- SHAP explainability feeding LLM prompt context
+- Claude Sonnet coaching cue generation with prompt caching
+- Frontend renders LLM cues alongside YOLOv8 results
+
+### Next
+- [ ] User auth (Clerk or Supabase Auth + JWT)
+- [ ] PostgreSQL migration (replace SQLite)
+- [ ] Celery + Redis job queue (replace FastAPI BackgroundTasks)
+- [ ] S3/R2 upload (replace local disk)
+- [ ] Dataset collection: 500 annotated real clips per lift
+- [ ] Retrain XGBoost on real labels (target: Pearson r > 0.75)
+- [ ] Beta user onboarding (target: 50 users)
 
 ---
 
