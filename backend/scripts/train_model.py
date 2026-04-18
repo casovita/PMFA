@@ -36,6 +36,7 @@ import numpy as np
 # Ensure backend package is importable when run from scripts/
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from app.services.feature_engineering import FEATURE_NAMES, features_to_row  # noqa: E402
 from app.services.ml_scorer import MLScorer  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
