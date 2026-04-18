@@ -8,6 +8,7 @@ from sqlmodel import Session
 from app.database import get_engine, get_session
 from app.models.job import AnalysisJob
 from app.schemas.analysis import JobStatusResponse
+from app.schemas.feedback import FeedbackResult
 from app.services.analyzer import run_analysis
 from app.services.scorer import FusionScorer  # noqa: F401 — used in type annotation below
 from app.services.storage import save_upload
@@ -64,6 +65,35 @@ async def submit_analysis(
     background_tasks.add_task(run_analysis, job_id=job.id, engine=engine, scorer=scorer)
 
     return JobStatusResponse(job_id=job.id, status="pending")
+
+
+@router.get(
+    "/feedback/{job_id}",
+    response_model=FeedbackResult,
+    summary="Retrieve LLM coaching cues for a completed job",
+)
+def get_feedback(job_id: uuid.UUID, session: SessionDep) -> FeedbackResult:
+    """Return only the LLM feedback for a completed job.
+
+    404 if job not found; 409 if job not yet completed; 204-equivalent detail
+    if feedback is unavailable (e.g. API key not configured).
+    """
+    job = session.get(AnalysisJob, job_id)
+    if job is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} not found.")
+    if job.status != "completed":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Job {job_id} is not yet completed (status: {job.status}).",
+        )
+    result = job.result or {}
+    feedback = result.get("feedback")
+    if feedback is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No LLM feedback available for this job (API key not configured or generation failed).",
+        )
+    return FeedbackResult(**feedback)
 
 
 @router.get(

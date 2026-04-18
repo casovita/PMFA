@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.schemas.feedback import FeedbackResult
+
 
 class Keypoint(BaseModel):
     x: float
@@ -52,6 +54,7 @@ class AnalysisResult(BaseModel):
     fatigue_flags: list[dict[str, Any]]
     processing_time_sec: float
     stance: str | None = None          # deadlift only: "sumo" | "conventional" | "unknown"
+    feedback: FeedbackResult | None = None
 
 
 class JobStatusResponse(BaseModel):

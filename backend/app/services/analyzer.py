@@ -35,6 +35,7 @@ from app.services.biomechanics import (
 )
 from app.services.inference import run_inference
 from app.services.scorer import FusionScorer, ScoredRep
+from app.services.llm_feedback import generate_feedback
 from app.services.storage import get_upload_path
 from app.services.transcoder import TranscodeError, transcode
 
@@ -172,6 +173,7 @@ def run_analysis(
         # Set-level violations: deduplicate all_violations by rule_id, worst severity
         set_violations = _dedup_violations(all_violations)
 
+        fatigue_flags = _detect_fatigue(rep_metrics)
         elapsed = time.monotonic() - start
 
         # ── Step 6: persist ──────────────────────────────────────────────────
@@ -179,18 +181,34 @@ def run_analysis(
             job.status = "failed"
             job.error_message = error_msg
         else:
+            quality = _quality_label(overall_score) if completed_reps else "pending"
+            rep_metrics_dicts = [m.model_dump() for m in rep_metrics]
+            set_violations_dicts = [v.model_dump() for v in set_violations]
+
+            # ── Step 5b: LLM coaching cues (graceful: None if key absent/API error) ─
+            feedback = generate_feedback(
+                movement=movement,
+                overall_score=overall_score,
+                quality_label=quality,
+                rep_metrics=rep_metrics_dicts,
+                violations=set_violations_dicts,
+                fatigue_flags=fatigue_flags,
+                stance=stance,
+            )
+
             result: dict[str, Any] = {
                 "job_id": str(job_id),
                 "movement": movement,
                 "total_reps": len(completed_reps),
                 "overall_score": overall_score,
-                "quality_label": _quality_label(overall_score) if completed_reps else "pending",
+                "quality_label": quality,
                 "frame_keypoints": [f.model_dump() for f in frame_keypoints],
-                "rep_metrics": [m.model_dump() for m in rep_metrics],
-                "violations": [v.model_dump() for v in set_violations],
-                "fatigue_flags": _detect_fatigue(rep_metrics),
+                "rep_metrics": rep_metrics_dicts,
+                "violations": set_violations_dicts,
+                "fatigue_flags": fatigue_flags,
                 "processing_time_sec": round(elapsed, 3),
                 "stance": stance,
+                "feedback": feedback.model_dump() if feedback else None,
             }
             job.status = "completed"
             job.result = result
